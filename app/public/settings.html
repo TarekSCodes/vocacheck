@@ -1,12 +1,284 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VocaCheck — Settings</title>
+  <title>VocaCheck — Einstellungen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Settings -->
+
+<header>
+  <a href="index.html" class="logo">Voca<span>Check</span></a>
+  <div class="header-actions">
+    <a href="index.html" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m0 0l7-7m-7 7l7 7"/></svg>
+      Übersicht
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="settings-layout">
+
+    <!-- Ollama model -->
+    <div class="settings-section">
+      <div class="settings-section-title">Ollama-Modell</div>
+
+      <!-- Active model selector -->
+      <div class="form-group">
+        <label class="form-label" for="ollamaModel">Aktives Modell</label>
+        <div class="form-row">
+          <select class="form-select" id="ollamaModel">
+            <option value="">Modelle werden geladen …</option>
+          </select>
+          <button class="btn btn-primary" id="saveOllamaBtn">Speichern</button>
+        </div>
+      </div>
+      <div class="status-msg" id="ollamaStatus"></div>
+
+      <!-- Download new model -->
+      <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:4px;display:flex;flex-direction:column;gap:14px">
+        <div class="settings-section-title" style="border:none;padding:0;margin:0">Weiteres Modell herunterladen</div>
+        <div class="form-group">
+          <label class="form-label" for="newModelInput">Modellname</label>
+          <div class="form-row">
+            <input class="form-input" id="newModelInput" type="text"
+                   placeholder="z.B. llama3.2:3b" autocomplete="off">
+            <button class="btn btn-ghost" id="downloadBtn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Herunterladen
+            </button>
+          </div>
+          <p style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
+            Beispiele: <code style="color:var(--accent)">llama3.1:8b</code> · <code style="color:var(--accent)">llama3.2:3b</code> · <code style="color:var(--accent)">mistral:7b</code>
+          </p>
+        </div>
+        <pre class="console-log" id="downloadLog"></pre>
+        <div class="status-msg" id="downloadStatus"></div>
+      </div>
+    </div>
+
+    <!-- Whisper model -->
+    <div class="settings-section">
+      <div class="settings-section-title">Whisper-Modell</div>
+      <div class="form-group">
+        <label class="form-label" for="whisperModel">Modellgröße</label>
+        <div class="form-row">
+          <select class="form-select" id="whisperModel">
+            <option value="tiny">tiny — schnellste, geringste Genauigkeit</option>
+            <option value="base">base</option>
+            <option value="small">small — empfohlen</option>
+            <option value="medium">medium</option>
+            <option value="large">large — höchste Genauigkeit, langsamer</option>
+          </select>
+          <button class="btn btn-primary" id="saveWhisperBtn">Speichern &amp; Neustart</button>
+        </div>
+      </div>
+      <div class="status-msg" id="whisperStatus"></div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
+        Eine Änderung des Whisper-Modells startet den Whisper-Container neu.<br>
+        Das dauert einige Sekunden.
+      </p>
+    </div>
+
+    <!-- System info -->
+    <div class="settings-section">
+      <div class="settings-section-title">System</div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:.88rem;color:var(--text-secondary)">
+        GPU-Status:
+        <span class="gpu-chip" id="gpuChip" style="opacity:.4">wird geprüft …</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script type="module">
+  import { SettingsService } from './services/SettingsService.js';
+  import { getStatus, getGpuStatus, restartWhisper, pullModel } from './services/AdminService.js';
+
+  // ── DOM refs ───────────────────────────────────────────────────────────
+  const ollamaSelect   = document.getElementById('ollamaModel');
+  const whisperSel     = document.getElementById('whisperModel');
+  const ollamaStatus   = document.getElementById('ollamaStatus');
+  const whisperStatus  = document.getElementById('whisperStatus');
+  const gpuChip        = document.getElementById('gpuChip');
+  const newModelInput  = document.getElementById('newModelInput');
+  const downloadBtn    = document.getElementById('downloadBtn');
+  const downloadLog    = document.getElementById('downloadLog');
+  const downloadStatus = document.getElementById('downloadStatus');
+
+  whisperSel.value = SettingsService.getWhisperModel();
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function showStatus(el, msg, type) {
+    el.textContent = msg;
+    el.className = `status-msg ${type}`;
+  }
+
+  function appendLog(text, cls) {
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = text + '\n';
+    downloadLog.appendChild(span);
+    downloadLog.scrollTop = downloadLog.scrollHeight;
+  }
+
+  function formatEvent(event) {
+    const parts = [event.status ?? ''];
+    if (event.completed != null && event.total != null && event.total > 0) {
+      const pct = Math.round(event.completed / event.total * 100);
+      parts.push(`${pct}% (${humanBytes(event.completed)} / ${humanBytes(event.total)})`);
+    } else if (event.digest) {
+      parts.push(event.digest.slice(0, 20) + '…');
+    }
+    return parts.filter(Boolean).join(' — ');
+  }
+
+  function humanBytes(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + ' GB';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + ' MB';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  // ── Load installed models into dropdown ────────────────────────────────
+  async function loadModels() {
+    const saved = SettingsService.getOllamaModel();
+    let models = [];
+
+    try {
+      const status = await getStatus();
+      models = status.models || [];
+    } catch {
+      showStatus(ollamaStatus, 'Ollama nicht erreichbar — Modelle konnten nicht geladen werden.', 'error');
+      ollamaSelect.innerHTML = `<option value="${escHtml(saved)}">${escHtml(saved)}</option>`;
+      return;
+    }
+
+    if (models.length === 0) {
+      ollamaSelect.innerHTML = '<option value="">Keine Modelle installiert</option>';
+      showStatus(ollamaStatus, 'Kein Modell installiert. Lade unten ein Modell herunter.', 'error');
+      return;
+    }
+
+    // Build options — ensure saved model is always present
+    const allModels = models.includes(saved) || !saved ? models : [saved, ...models];
+    ollamaSelect.innerHTML = allModels
+      .map(m => `<option value="${escHtml(m)}"${m === saved ? ' selected' : ''}>${escHtml(m)}</option>`)
+      .join('');
+
+    ollamaStatus.className = 'status-msg'; // hide any previous message
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Save Ollama model ──────────────────────────────────────────────────
+  document.getElementById('saveOllamaBtn').addEventListener('click', () => {
+    const val = ollamaSelect.value;
+    if (!val) {
+      showStatus(ollamaStatus, 'Kein Modell ausgewählt.', 'error');
+      return;
+    }
+    SettingsService.setOllamaModel(val);
+    showStatus(ollamaStatus, 'Modell gespeichert.', 'success');
+  });
+
+  // ── Download new model ─────────────────────────────────────────────────
+  downloadBtn.addEventListener('click', async () => {
+    const model = newModelInput.value.trim();
+    if (!model) return;
+
+    downloadBtn.disabled = true;
+    newModelInput.disabled = true;
+    downloadStatus.className = 'status-msg';
+    downloadLog.innerHTML = '';
+    downloadLog.classList.add('visible');
+
+    appendLog(`> Starte Download: ${model}`);
+
+    let done = false;
+    try {
+      await pullModel(model, (event) => {
+        if (event.status === 'success' || event.status === 'complete') {
+          done = true;
+          appendLog('✓ Abgeschlossen.', 'log-done');
+        } else {
+          appendLog(formatEvent(event));
+        }
+      });
+    } catch (err) {
+      appendLog(`✗ Fehler: ${err.message}`, 'log-err');
+      showStatus(downloadStatus, `Download fehlgeschlagen: ${err.message}`, 'error');
+      downloadBtn.disabled = false;
+      newModelInput.disabled = false;
+      return;
+    }
+
+    if (!done) {
+      appendLog('✓ Abgeschlossen.', 'log-done');
+    }
+
+    // Refresh dropdown — new model should now appear
+    await loadModels();
+    // Auto-select and save the freshly downloaded model
+    ollamaSelect.value = model;
+    SettingsService.setOllamaModel(model);
+
+    showStatus(downloadStatus, `Modell „${model}" heruntergeladen und aktiviert.`, 'success');
+    newModelInput.value = '';
+    downloadBtn.disabled = false;
+    newModelInput.disabled = false;
+  });
+
+  // ── GPU status ─────────────────────────────────────────────────────────
+  getGpuStatus()
+    .then(({ gpuAvailable }) => {
+      gpuChip.style.opacity = '1';
+      if (gpuAvailable) {
+        gpuChip.className = 'gpu-chip available';
+        gpuChip.innerHTML = `
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          Verfügbar`;
+      } else {
+        gpuChip.className = 'gpu-chip unavailable';
+        gpuChip.innerHTML = `
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Nicht verfügbar (CPU)`;
+      }
+    })
+    .catch(() => {
+      gpuChip.style.opacity = '1';
+      gpuChip.className = 'gpu-chip unavailable';
+      gpuChip.textContent = 'Ollama nicht erreichbar';
+    });
+
+  // ── Save Whisper model + restart ───────────────────────────────────────
+  document.getElementById('saveWhisperBtn').addEventListener('click', async () => {
+    const val = whisperSel.value;
+    const btn = document.getElementById('saveWhisperBtn');
+    btn.disabled = true;
+    showStatus(whisperStatus, 'Whisper-Container wird neu gestartet …', 'success');
+
+    SettingsService.setWhisperModel(val);
+    try {
+      await restartWhisper();
+      showStatus(whisperStatus, 'Whisper neu gestartet. Modell wird beim nächsten Start geladen.', 'success');
+    } catch (err) {
+      showStatus(whisperStatus, `Neustart fehlgeschlagen: ${err.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  await loadModels();
+</script>
+
 </body>
 </html>

@@ -186,6 +186,45 @@ describe('POST /api/admin/pull-model — SSE streaming', () => {
   });
 });
 
+describe('POST /api/admin/pull-model — Ollama error response', () => {
+  beforeEach(async () => {
+    await setupApp((req, res) => {
+      // Fake Ollama returns an error object (HTTP 200 but error in body)
+      res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+      res.write(JSON.stringify({ error: 'pull model manifest: file does not exist' }) + '\n');
+      res.end();
+    });
+  });
+
+  test('streams the error event and does NOT send complete', (done) => {
+    const server = app.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      const body = '{"model":"llama3.2:11b"}';
+      const sseReq = http.request(
+        {
+          hostname: '127.0.0.1',
+          port,
+          path: '/api/admin/pull-model',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+        },
+        (res) => {
+          const chunks = [];
+          res.on('data', (chunk) => chunks.push(chunk.toString()));
+          res.on('end', () => {
+            const full = chunks.join('');
+            expect(full).toContain('"error"');
+            expect(full).not.toContain('"status":"complete"');
+            server.close(done);
+          });
+        }
+      );
+      sseReq.write(body);
+      sseReq.end();
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // POST /api/admin/restart-whisper
 // ---------------------------------------------------------------------------

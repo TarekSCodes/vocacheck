@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VocaCheck — Importieren</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* ── Import-specific styles ── */
+    .import-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 700px;
+    }
+
+    /* Radio option rows */
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .radio-opt {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .85rem;
+      color: var(--text-secondary);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+    }
+    .radio-opt:has(input:checked) {
+      border-color: rgba(56,189,248,.4);
+      color: var(--text-primary);
+      background: var(--accent-dim);
+    }
+    .radio-opt input[type="radio"] {
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    .custom-sep-input {
+      width: 90px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: 'DM Sans', monospace;
+      font-size: .85rem;
+      padding: 5px 10px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .custom-sep-input:focus { border-color: var(--border-glow); }
+    .custom-sep-input:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    /* Preview table */
+    .preview-count {
+      font-size: .88rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    .preview-count strong { color: var(--accent); font-size: 1rem; }
+    .preview-count.warn { color: var(--red); }
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .83rem;
+    }
+    .preview-table th {
+      text-align: left;
+      padding: 6px 10px;
+      color: var(--text-muted);
+      font-size: .7rem;
+      font-family: 'Syne', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+    }
+    .preview-table td {
+      padding: 7px 10px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(99,120,170,.08);
+      vertical-align: top;
+      line-height: 1.4;
+    }
+    .preview-table td:first-child { color: var(--text-primary); }
+    .preview-more {
+      font-size: .78rem;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      font-style: italic;
+    }
+
+    /* Target deck section */
+    .deck-mode-panel {
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .deck-mode-toggle {
+      display: flex;
+      gap: 8px;
+    }
+    .deck-mode-btn {
+      flex: 1;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .85rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      transition: all .2s;
+      text-align: center;
+    }
+    .deck-mode-btn.active {
+      background: var(--accent-dim);
+      border-color: rgba(56,189,248,.4);
+      color: var(--text-primary);
+    }
+    #existingDeckPanel, #newDeckPanel { display: none; }
+    #existingDeckPanel.visible, #newDeckPanel.visible { display: flex; flex-direction: column; gap: 12px; }
+
+    /* Paste textarea override height */
+    #pasteArea { min-height: 180px; }
+
+    /* Import button row */
+    .import-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">Voca<span>Check</span></a>
+  <div class="deck-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    <strong>Karteikarten importieren</strong>
+  </div>
+  <div class="header-actions">
+    <a href="index.html" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m0 0l7-7m-7 7l7 7"/></svg>
+      Zurück
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="import-layout">
+
+    <!-- STEP 1: Paste -->
+    <div class="settings-section">
+      <div class="settings-section-title">1 &mdash; Text einfügen</div>
+      <div class="form-group">
+        <label class="form-label" for="pasteArea">Inhalt</label>
+        <textarea id="pasteArea" placeholder="Text aus Quizlet oder einem anderen Lernkartenprogramm hier einfügen …&#10;&#10;Beispiel (Tab-getrennt):&#10;Hund	Dog&#10;Katze	Cat"></textarea>
+      </div>
+    </div>
+
+    <!-- STEP 2: Separator config -->
+    <div class="settings-section">
+      <div class="settings-section-title">2 &mdash; Trennzeichen</div>
+
+      <div class="form-group">
+        <label class="form-label">Zwischen Begriff und Definition</label>
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="termSep" value="tab" checked> Tab
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="termSep" value="comma"> Komma
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="termSep" value="custom">
+            Nutzerdefiniert:
+            <input class="custom-sep-input" id="termSepCustom" type="text" placeholder="-" disabled>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Zwischen Karten</label>
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="newline" checked> Neue Zeile
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="semicolon"> Semikolon
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="custom">
+            Nutzerdefiniert:
+            <input class="custom-sep-input" id="lineSepCustom" type="text" placeholder="\n\n" disabled>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Preview -->
+    <div class="settings-section">
+      <div class="settings-section-title">3 &mdash; Vorschau</div>
+      <div id="previewCount" class="preview-count">Noch kein Text eingefügt.</div>
+      <div id="previewTableWrap"></div>
+    </div>
+
+    <!-- STEP 4: Target deck -->
+    <div class="settings-section">
+      <div class="settings-section-title">4 &mdash; Zieldeck</div>
+
+      <div class="deck-mode-panel">
+        <div class="deck-mode-toggle">
+          <button class="deck-mode-btn active" id="btnExisting">Bestehendes Deck</button>
+          <button class="deck-mode-btn" id="btnNew">Neues Deck erstellen</button>
+        </div>
+
+        <!-- Existing deck -->
+        <div id="existingDeckPanel" class="visible">
+          <div class="form-group">
+            <label class="form-label" for="deckSelect">Deck auswählen</label>
+            <select class="form-select" id="deckSelect">
+              <option value="">Decks werden geladen…</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- New deck -->
+        <div id="newDeckPanel">
+          <div class="form-group">
+            <label class="form-label" for="newDeckName">Name</label>
+            <input class="form-input" id="newDeckName" type="text" placeholder="z.B. AP2 – IHK Lernkarten" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="newDeckDesc">Beschreibung (optional)</label>
+            <input class="form-input" id="newDeckDesc" type="text" placeholder="Kurze Beschreibung">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORT BUTTON + STATUS -->
+    <div class="import-footer">
+      <button class="btn btn-primary" id="importBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importieren
+      </button>
+      <div class="status-msg" id="importStatus"></div>
+    </div>
+
+  </div><!-- /.import-layout -->
+</main>
+
+<script type="module">
+  import { parseText } from './services/ImportService.js';
+  import { createCard } from './services/CardService.js';
+  import { getAllDecks, createDeck } from './services/DeckService.js';
+
+  // ── URL param ────────────────────────────────────────────────────────────
+  const params   = new URLSearchParams(location.search);
+  const presetId = params.get('deckId');  // may be null
+
+  // ── DOM refs ─────────────────────────────────────────────────────────────
+  const pasteArea       = document.getElementById('pasteArea');
+  const termSepCustom   = document.getElementById('termSepCustom');
+  const lineSepCustom   = document.getElementById('lineSepCustom');
+  const previewCount    = document.getElementById('previewCount');
+  const previewTableWrap = document.getElementById('previewTableWrap');
+  const deckSelect      = document.getElementById('deckSelect');
+  const newDeckName     = document.getElementById('newDeckName');
+  const newDeckDesc     = document.getElementById('newDeckDesc');
+  const importBtn       = document.getElementById('importBtn');
+  const importStatus    = document.getElementById('importStatus');
+  const btnExisting     = document.getElementById('btnExisting');
+  const btnNew          = document.getElementById('btnNew');
+  const existingPanel   = document.getElementById('existingDeckPanel');
+  const newPanel        = document.getElementById('newDeckPanel');
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let parsedCards = [];
+  let deckMode    = 'existing';  // 'existing' | 'new'
+
+  // ── Separator helpers ─────────────────────────────────────────────────────
+
+  /** Convert display string like "\\t" or "\\n" into actual control characters. */
+  function interpretEscapes(str) {
+    return str.replace(/\\t/g, '\t').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+  }
+
+  function getTermSep() {
+    const val = document.querySelector('input[name="termSep"]:checked').value;
+    if (val === 'tab')    return '\t';
+    if (val === 'comma')  return ',';
+    return interpretEscapes(termSepCustom.value) || '\t';
+  }
+
+  function getLineSep() {
+    const val = document.querySelector('input[name="lineSep"]:checked').value;
+    if (val === 'newline')   return '\n';
+    if (val === 'semicolon') return ';';
+    return interpretEscapes(lineSepCustom.value) || '\n';
+  }
+
+  // ── Enable/disable custom inputs ──────────────────────────────────────────
+  function syncCustomInputs() {
+    const termVal = document.querySelector('input[name="termSep"]:checked').value;
+    const lineVal = document.querySelector('input[name="lineSep"]:checked').value;
+    termSepCustom.disabled = (termVal !== 'custom');
+    lineSepCustom.disabled = (lineVal !== 'custom');
+    if (termVal === 'custom') termSepCustom.focus();
+    if (lineVal === 'custom') lineSepCustom.focus();
+  }
+
+  document.querySelectorAll('input[name="termSep"]').forEach(r =>
+    r.addEventListener('change', () => { syncCustomInputs(); updatePreview(); }));
+  document.querySelectorAll('input[name="lineSep"]').forEach(r =>
+    r.addEventListener('change', () => { syncCustomInputs(); updatePreview(); }));
+  termSepCustom.addEventListener('input', updatePreview);
+  lineSepCustom.addEventListener('input', updatePreview);
+
+  // ── Preview ───────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function updatePreview() {
+    const raw = pasteArea.value;
+    if (!raw.trim()) {
+      previewCount.className = 'preview-count';
+      previewCount.textContent = 'Noch kein Text eingefügt.';
+      previewTableWrap.innerHTML = '';
+      importBtn.disabled = true;
+      return;
+    }
+
+    parsedCards = parseText(raw, {
+      termDefSeparator: getTermSep(),
+      lineSeparator:    getLineSep(),
+    });
+
+    if (parsedCards.length === 0) {
+      previewCount.className = 'preview-count warn';
+      previewCount.innerHTML = '0 Karteikarten erkannt — bitte Trennzeichen prüfen.';
+      previewTableWrap.innerHTML = '';
+      importBtn.disabled = true;
+      return;
+    }
+
+    previewCount.className = 'preview-count';
+    previewCount.innerHTML = `<strong>${parsedCards.length}</strong> Karteikarte${parsedCards.length !== 1 ? 'n' : ''} erkannt`;
+
+    const slice = parsedCards.slice(0, 5);
+    const rows = slice.map(c =>
+      `<tr><td>${escHtml(c.question)}</td><td>${escHtml(c.answer)}</td></tr>`
+    ).join('');
+    const more = parsedCards.length > 5
+      ? `<tr><td colspan="2" class="preview-more">… und ${parsedCards.length - 5} weitere</td></tr>`
+      : '';
+
+    previewTableWrap.innerHTML = `
+      <table class="preview-table">
+        <thead><tr><th>Begriff</th><th>Definition</th></tr></thead>
+        <tbody>${rows}${more}</tbody>
+      </table>`;
+
+    importBtn.disabled = false;
+  }
+
+  pasteArea.addEventListener('input', updatePreview);
+
+  // ── Deck mode toggle ───────────────────────────────────────────────────────
+  btnExisting.addEventListener('click', () => {
+    deckMode = 'existing';
+    btnExisting.classList.add('active');
+    btnNew.classList.remove('active');
+    existingPanel.classList.add('visible');
+    newPanel.classList.remove('visible');
+  });
+
+  btnNew.addEventListener('click', () => {
+    deckMode = 'new';
+    btnNew.classList.add('active');
+    btnExisting.classList.remove('active');
+    newPanel.classList.add('visible');
+    existingPanel.classList.remove('visible');
+  });
+
+  // ── Load decks ─────────────────────────────────────────────────────────────
+  async function loadDecks() {
+    let decks;
+    try {
+      decks = await getAllDecks();
+    } catch {
+      deckSelect.innerHTML = '<option value="">Fehler beim Laden der Decks</option>';
+      return;
+    }
+
+    if (decks.length === 0) {
+      deckSelect.innerHTML = '<option value="">Keine Decks vorhanden</option>';
+      return;
+    }
+
+    deckSelect.innerHTML = decks
+      .map(d => `<option value="${escHtml(d.id)}">${escHtml(d.name)}</option>`)
+      .join('');
+
+    if (presetId) {
+      const match = decks.find(d => d.id === presetId);
+      if (match) {
+        deckSelect.value = presetId;
+        // keep mode as 'existing' (already default)
+      }
+    }
+  }
+
+  // ── Status helpers ─────────────────────────────────────────────────────────
+  function showStatus(msg, type) {
+    importStatus.textContent = msg;
+    importStatus.className = `status-msg ${type}`;
+  }
+
+  // ── Import ──────────────────────────────────────────────────────────────────
+  importBtn.addEventListener('click', async () => {
+    if (parsedCards.length === 0) return;
+
+    let targetDeckId;
+
+    if (deckMode === 'existing') {
+      targetDeckId = deckSelect.value;
+      if (!targetDeckId) {
+        showStatus('Bitte ein Deck auswählen.', 'error');
+        return;
+      }
+    } else {
+      const name = newDeckName.value.trim();
+      if (!name) {
+        showStatus('Bitte einen Deck-Namen eingeben.', 'error');
+        return;
+      }
+      try {
+        const deck = await createDeck({ name, description: newDeckDesc.value.trim() || undefined });
+        targetDeckId = deck.id;
+      } catch (err) {
+        showStatus(`Deck konnte nicht erstellt werden: ${err.message}`, 'error');
+        return;
+      }
+    }
+
+    importBtn.disabled = true;
+    importStatus.className = 'status-msg';
+
+    let imported = 0;
+    let failed   = 0;
+
+    for (let i = 0; i < parsedCards.length; i++) {
+      const { question, answer } = parsedCards[i];
+      showStatus(`Importiere ${i + 1} / ${parsedCards.length} …`, 'success');
+      try {
+        await createCard({ deckId: targetDeckId, question, answer });
+        imported++;
+      } catch {
+        failed++;
+      }
+    }
+
+    if (failed === 0) {
+      importStatus.className = 'status-msg success';
+      importStatus.innerHTML =
+        `${imported} Karte${imported !== 1 ? 'n' : ''} erfolgreich importiert. ` +
+        `<a href="manage.html?deckId=${targetDeckId}" style="color:var(--accent);text-decoration:underline">Deck verwalten →</a>`;
+    } else {
+      showStatus(
+        `${imported} Karte${imported !== 1 ? 'n' : ''} importiert, ${failed} fehlgeschlagen.`,
+        failed === parsedCards.length ? 'error' : 'success'
+      );
+    }
+
+    importBtn.disabled = parsedCards.length === 0;
+  });
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  syncCustomInputs();
+  await loadDecks();
+</script>
+
+</body>
+</html>

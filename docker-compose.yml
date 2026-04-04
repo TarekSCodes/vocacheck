@@ -35,7 +35,6 @@ services:
     environment:
       - ASR_MODEL=small
       - ASR_ENGINE=faster_whisper
-      - ASR_LANG=auto
     volumes:
       - whisper_models:/root/.cache/whisper
 

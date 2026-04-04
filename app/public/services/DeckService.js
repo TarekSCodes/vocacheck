@@ -6,6 +6,7 @@
  */
 
 import { LoggerService } from './LoggerService.js';
+import { VocaCheckError } from './errors.js';
 
 const BASE = '/api/decks';
 
@@ -33,9 +34,15 @@ async function assertOk(res) {
  */
 export async function getAllDecks() {
   LoggerService.debug('DeckService', 'getAllDecks');
-  const res = await fetch(BASE);
-  await assertOk(res);
-  return res.json();
+  try {
+    const res = await fetch(BASE);
+    await assertOk(res);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('DeckService', 'getAllDecks — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -49,13 +56,19 @@ export async function getAllDecks() {
  */
 export async function createDeck({ name, description } = {}) {
   LoggerService.debug('DeckService', `createDeck — name: ${name}`);
-  const res = await fetch(BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, description }),
-  });
-  await assertOk(res);
-  return res.json();
+  try {
+    const res = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+    await assertOk(res);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('DeckService', 'createDeck — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -69,13 +82,19 @@ export async function createDeck({ name, description } = {}) {
  */
 export async function updateDeck(id, updates) {
   LoggerService.debug('DeckService', `updateDeck — id: ${id}`);
-  const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
-  });
-  await assertOk(res);
-  return res.json();
+  try {
+    const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    await assertOk(res);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('DeckService', 'updateDeck — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -88,6 +107,12 @@ export async function updateDeck(id, updates) {
  */
 export async function deleteDeck(id) {
   LoggerService.debug('DeckService', `deleteDeck — id: ${id}`);
-  const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  await assertOk(res);
+  try {
+    const res = await fetch(`${BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await assertOk(res);
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('DeckService', 'deleteDeck — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }

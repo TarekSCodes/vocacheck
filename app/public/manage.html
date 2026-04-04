@@ -1,12 +1,314 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VocaCheck — Manage Cards</title>
+  <title>VocaCheck — Verwalten</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Card management -->
+
+<!-- TOPBAR -->
+<header>
+  <a href="index.html" class="logo">Voca<span>Check</span></a>
+  <div class="deck-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+    <strong id="deckName">Deck laden…</strong>
+  </div>
+  <div class="header-actions">
+    <a href="#" class="nav-link" id="importLink">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importieren
+    </a>
+    <a href="index.html" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m0 0l7-7m-7 7l7 7"/></svg>
+      Übersicht
+    </a>
+  </div>
+</header>
+
+<!-- MAIN: two-column -->
+<main class="split" style="align-items:start">
+
+  <!-- LEFT: CARD LIST SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <span class="panel-label">Karten</span>
+      <button class="btn btn-primary" id="newCardBtn" style="padding:6px 14px;font-size:.8rem">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Neue Karte
+      </button>
+    </div>
+    <div class="sidebar-list" id="cardList">
+      <div class="empty-state">
+        <p>Keine Karten vorhanden.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: FORM PANEL -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-label" id="formMode">Neue Karte</span>
+      <span id="editingBadge" class="card-number" style="display:none">Bearbeiten</span>
+    </div>
+    <div class="input-area-wrap" style="gap:12px">
+
+      <!-- Question -->
+      <div class="form-group">
+        <label class="form-label">Frage</label>
+        <div class="voice-bar-sm">
+          <button class="mic-btn" id="micQ" title="Frage diktieren">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <div class="wave-indicator" id="waveQ">
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+          <span id="voiceLabelQ" style="font-size:.78rem;color:var(--text-muted)">Frage diktieren</span>
+        </div>
+        <textarea id="questionInput" class="textarea-sm" placeholder="Frage eingeben …" style="min-height:100px"></textarea>
+      </div>
+
+      <!-- Answer -->
+      <div class="form-group">
+        <label class="form-label">Musterantwort</label>
+        <div class="voice-bar-sm">
+          <button class="mic-btn" id="micA" title="Antwort diktieren">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <div class="wave-indicator" id="waveA">
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+          <span id="voiceLabelA" style="font-size:.78rem;color:var(--text-muted)">Antwort diktieren</span>
+        </div>
+        <textarea id="answerInput" class="textarea-sm" placeholder="Musterantwort eingeben …" style="min-height:100px"></textarea>
+      </div>
+
+      <div class="status-msg" id="formStatus"></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="saveBtn">Speichern</button>
+        <button class="btn btn-ghost" id="cancelBtn">Abbrechen</button>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+  import { getCards, createCard, updateCard, deleteCard } from './services/CardService.js';
+  import { getAllDecks } from './services/DeckService.js';
+  import { startRecording, stopRecording, transcribe } from './services/WhisperService.js';
+
+  // ── Bootstrap ─────────────────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const deckId = params.get('deckId');
+  if (!deckId) { location.href = 'index.html'; }
+
+  let deck = null;
+  let cards = [];
+  let editingId = null;   // null = create mode, string = edit mode
+  let activeMic = null;   // 'Q' | 'A' | null
+  let isRecording = false;
+
+  // ── DOM refs ──────────────────────────────────────────────────────────
+  const deckNameEl   = document.getElementById('deckName');
+  const cardListEl   = document.getElementById('cardList');
+  const formModeEl   = document.getElementById('formMode');
+  const editingBadge = document.getElementById('editingBadge');
+  const questionEl   = document.getElementById('questionInput');
+  const answerEl     = document.getElementById('answerInput');
+  const formStatus   = document.getElementById('formStatus');
+  const saveBtn      = document.getElementById('saveBtn');
+  const cancelBtn    = document.getElementById('cancelBtn');
+
+  // ── Init ──────────────────────────────────────────────────────────────
+  async function init() {
+    document.getElementById('importLink').href = `import.html?deckId=${deckId}`;
+    const decks = await getAllDecks();
+    deck = decks.find(d => d.id === deckId);
+    if (!deck) { location.href = 'index.html'; return; }
+    deckNameEl.textContent = deck.name;
+    document.title = `VocaCheck — ${deck.name} verwalten`;
+    await refreshList();
+  }
+
+  async function refreshList() {
+    cards = await getCards(deckId);
+    renderList();
+  }
+
+  function renderList() {
+    if (cards.length === 0) {
+      cardListEl.innerHTML = '<div class="empty-state"><p>Noch keine Karten.</p></div>';
+      return;
+    }
+    cardListEl.innerHTML = '';
+    cards.forEach(card => {
+      const item = document.createElement('div');
+      item.className = 'card-list-item' + (card.id === editingId ? ' active' : '');
+      item.dataset.id = card.id;
+      item.innerHTML = `
+        <span class="badge-level" style="flex-shrink:0;font-size:.65rem">L${card.level}</span>
+        <span class="card-list-item-text">${escHtml(card.question)}</span>
+        <button class="card-list-item-del" data-id="${card.id}" title="Karte löschen" aria-label="Löschen">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>`;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.card-list-item-del')) return;
+        loadForEdit(card);
+      });
+      item.querySelector('.card-list-item-del').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Karte löschen?\n„${card.question.slice(0, 60)}"`)) return;
+        await deleteCard(card.id);
+        if (editingId === card.id) resetForm();
+        await refreshList();
+      });
+      cardListEl.appendChild(item);
+    });
+  }
+
+  // ── Form helpers ──────────────────────────────────────────────────────
+  function loadForEdit(card) {
+    editingId = card.id;
+    questionEl.value = card.question;
+    answerEl.value   = card.answer;
+    formModeEl.textContent = 'Karte bearbeiten';
+    editingBadge.style.display = 'inline';
+    clearStatus();
+    renderList(); // re-render to highlight active
+    questionEl.focus();
+  }
+
+  function resetForm() {
+    editingId = null;
+    questionEl.value = '';
+    answerEl.value   = '';
+    formModeEl.textContent = 'Neue Karte';
+    editingBadge.style.display = 'none';
+    clearStatus();
+    renderList();
+  }
+
+  function clearStatus() {
+    formStatus.className = 'status-msg';
+    formStatus.textContent = '';
+  }
+
+  // ── Save / Cancel ─────────────────────────────────────────────────────
+  saveBtn.addEventListener('click', async () => {
+    const question = questionEl.value.trim();
+    const answer   = answerEl.value.trim();
+    if (!question || !answer) {
+      formStatus.textContent = 'Bitte Frage und Antwort ausfüllen.';
+      formStatus.className = 'status-msg error';
+      return;
+    }
+    saveBtn.disabled = true;
+    clearStatus();
+    try {
+      if (editingId) {
+        await updateCard(editingId, { question, answer });
+      } else {
+        await createCard({ deckId, question, answer });
+      }
+      resetForm();
+      await refreshList();
+    } catch (err) {
+      formStatus.textContent = `Fehler: ${err.message}`;
+      formStatus.className = 'status-msg error';
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  cancelBtn.addEventListener('click', resetForm);
+  document.getElementById('newCardBtn').addEventListener('click', resetForm);
+
+  // ── Mic helpers ───────────────────────────────────────────────────────
+  async function handleMic(field) {
+    // field = 'Q' or 'A'
+    const targetEl = field === 'Q' ? questionEl : answerEl;
+    const micEl    = document.getElementById(`mic${field}`);
+    const waveEl   = document.getElementById(`wave${field}`);
+    const labelEl  = document.getElementById(`voiceLabel${field}`);
+    const waves    = waveEl.querySelectorAll('.wave-bar');
+
+    if (isRecording && activeMic === field) {
+      // stop current recording
+      isRecording = false;
+      activeMic = null;
+      micEl.classList.remove('recording');
+      waves.forEach(b => b.classList.remove('active'));
+      labelEl.textContent = `${field === 'Q' ? 'Frage' : 'Antwort'} diktieren`;
+
+      const result = await stopRecording();
+      if (!result || result.success === false) return;
+      try {
+        const text = await transcribe(result);
+        targetEl.value += (targetEl.value ? ' ' : '') + text;
+      } catch {
+        labelEl.textContent = 'Transkriptions-Fehler';
+      }
+      return;
+    }
+
+    // stop any other active mic first
+    if (isRecording && activeMic && activeMic !== field) {
+      const otherEl  = document.getElementById(`mic${activeMic}`);
+      const otherWave = document.getElementById(`wave${activeMic}`);
+      const otherLabel = document.getElementById(`voiceLabel${activeMic}`);
+      otherEl.classList.remove('recording');
+      otherWave.querySelectorAll('.wave-bar').forEach(b => b.classList.remove('active'));
+      otherLabel.textContent = `${activeMic === 'Q' ? 'Frage' : 'Antwort'} diktieren`;
+      await stopRecording();
+    }
+
+    // start new recording
+    try {
+      await startRecording();
+      isRecording = true;
+      activeMic = field;
+      micEl.classList.add('recording');
+      waves.forEach(b => b.classList.add('active'));
+      labelEl.textContent = 'Aufnahme läuft … klicke zum Stoppen';
+    } catch (err) {
+      labelEl.textContent = `Fehler: ${err.message}`;
+    }
+  }
+
+  document.getElementById('micQ').addEventListener('click', () => handleMic('Q'));
+  document.getElementById('micA').addEventListener('click', () => handleMic('A'));
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────
+  await init();
+</script>
+
 </body>
 </html>

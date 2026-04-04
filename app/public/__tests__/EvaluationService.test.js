@@ -1,1 +1,96 @@
-// Frontend tests: EvaluationService
+import {
+  buildPrompt,
+  parseResponse,
+  evaluate,
+} from '../services/EvaluationService.js';
+import { generate } from '../services/OllamaService.js';
+import { SettingsService } from '../services/SettingsService.js';
+import { InvalidResponseError, OllamaConnectionError } from '../services/errors.js';
+
+jest.mock('../services/OllamaService.js');
+jest.mock('../services/SettingsService.js');
+
+afterEach(() => {
+  jest.resetAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// buildPrompt
+// ---------------------------------------------------------------------------
+describe('buildPrompt', () => {
+  test('includes question, modelAnswer, userAnswer in the returned string', () => {
+    const result = buildPrompt('What is OOP?', 'Object-oriented programming', 'OOP is a paradigm');
+    expect(result).toContain('What is OOP?');
+    expect(result).toContain('Object-oriented programming');
+    expect(result).toContain('OOP is a paradigm');
+  });
+
+  test('does not include unrelated card fields', () => {
+    const result = buildPrompt('Q', 'MA', 'UA');
+    expect(result).not.toContain('level');
+    expect(result).not.toContain('correctStreak');
+    expect(result).not.toContain('deckId');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseResponse
+// ---------------------------------------------------------------------------
+describe('parseResponse', () => {
+  test('valid JSON with correct: true is parsed correctly', () => {
+    const result = parseResponse('{"correct":true,"feedback":"Well done"}');
+    expect(result).toEqual({ correct: true, feedback: 'Well done' });
+  });
+
+  test('valid JSON with correct: false is parsed correctly', () => {
+    const result = parseResponse('{"correct":false,"feedback":"Try again"}');
+    expect(result).toEqual({ correct: false, feedback: 'Try again' });
+  });
+
+  test('invalid JSON string throws InvalidResponseError', () => {
+    expect(() => parseResponse('not json')).toThrow(InvalidResponseError);
+  });
+
+  test('JSON missing correct field throws InvalidResponseError', () => {
+    expect(() => parseResponse('{"feedback":"ok"}')).toThrow(InvalidResponseError);
+  });
+
+  test('JSON missing feedback field throws InvalidResponseError', () => {
+    expect(() => parseResponse('{"correct":true}')).toThrow(InvalidResponseError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// evaluate
+// ---------------------------------------------------------------------------
+describe('evaluate', () => {
+  test('calls generate() with userPrompt, SYSTEM_PROMPT, and model from settings', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockResolvedValue('{"correct":true,"feedback":"Correct!"}');
+
+    await evaluate('Q', 'MA', 'UA');
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    const [userPrompt, systemPrompt, model] = generate.mock.calls[0];
+    expect(userPrompt).toContain('Q');
+    expect(userPrompt).toContain('MA');
+    expect(userPrompt).toContain('UA');
+    expect(systemPrompt).toContain('flashcard');
+    expect(model).toBe('llama3.1:8b');
+  });
+
+  test('returns { correct, feedback } on successful response', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockResolvedValue('{"correct":false,"feedback":"Needs work"}');
+
+    const result = await evaluate('Q', 'MA', 'UA');
+    expect(result).toEqual({ correct: false, feedback: 'Needs work' });
+  });
+
+  test('throws OllamaConnectionError when generate() rejects', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockRejectedValue(new OllamaConnectionError('Ollama down'));
+
+    await expect(evaluate('Q', 'MA', 'UA')).rejects.toThrow(OllamaConnectionError);
+  });
+});

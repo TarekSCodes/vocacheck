@@ -6,14 +6,16 @@
  */
 
 const KEYS = {
-  OLLAMA_MODEL:  'vocacheck_ollama_model',
-  WHISPER_MODEL: 'vocacheck_whisper_model',
-  SYSTEM_PROMPT: 'vocacheck_system_prompt',
+  OLLAMA_MODEL:     'vocacheck_ollama_model',
+  WHISPER_MODEL:    'vocacheck_whisper_model',
+  SYSTEM_PROMPT:    'vocacheck_system_prompt',
+  KEYBOARD_SCHEME:  'vocacheck_keyboard_scheme',
 };
 
 const DEFAULTS = {
-  OLLAMA_MODEL: 'llama3.1:8b',
-  WHISPER_MODEL: 'small',
+  OLLAMA_MODEL:    'llama3.1:8b',
+  WHISPER_MODEL:   'small',
+  KEYBOARD_SCHEME: 'space-enter',
 };
 
 /**
@@ -82,6 +84,25 @@ export const SettingsService = {
    */
   resetSystemPrompt() {
     localStorage.removeItem(KEYS.SYSTEM_PROMPT);
+  },
+
+  /**
+   * Returns the keyboard shortcut scheme (`'space-enter'` or `'arrows'`).
+   * Falls back to `'space-enter'` if nothing is stored yet.
+   *
+   * @returns {string}
+   */
+  getKeyboardScheme() {
+    return localStorage.getItem(KEYS.KEYBOARD_SCHEME) ?? DEFAULTS.KEYBOARD_SCHEME;
+  },
+
+  /**
+   * Persists the keyboard shortcut scheme.
+   *
+   * @param {'space-enter'|'arrows'} scheme
+   */
+  setKeyboardScheme(scheme) {
+    localStorage.setItem(KEYS.KEYBOARD_SCHEME, scheme);
   },
 
   /**

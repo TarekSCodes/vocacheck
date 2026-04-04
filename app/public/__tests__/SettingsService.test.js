@@ -129,3 +129,27 @@ describe('setAll', () => {
     expect(() => SettingsService.setAll({})).not.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// getKeyboardScheme
+// ---------------------------------------------------------------------------
+describe('getKeyboardScheme', () => {
+  test("returns 'space-enter' as default when nothing is stored", () => {
+    expect(SettingsService.getKeyboardScheme()).toBe('space-enter');
+  });
+
+  test('returns stored value after setKeyboardScheme()', () => {
+    SettingsService.setKeyboardScheme('arrows');
+    expect(SettingsService.getKeyboardScheme()).toBe('arrows');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setKeyboardScheme
+// ---------------------------------------------------------------------------
+describe('setKeyboardScheme', () => {
+  test('persists scheme to localStorage under vocacheck_keyboard_scheme', () => {
+    SettingsService.setKeyboardScheme('arrows');
+    expect(localStorage.getItem('vocacheck_keyboard_scheme')).toBe('arrows');
+  });
+});

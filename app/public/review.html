@@ -6,6 +6,12 @@
   <title>VocaCheck — Lernen</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .shortcut-hint {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: .75rem; color: var(--text-muted);
+    }
+  </style>
 </head>
 <body>
 
@@ -71,6 +77,7 @@
           <div class="wave-bar"></div>
         </div>
         <span id="voiceLabel" style="flex:1">Mikrofon – klicke zum Sprechen</span>
+        <span class="shortcut-hint" id="micHint"></span>
       </div>
 
       <div class="textarea-wrap">
@@ -84,6 +91,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
           Antwort prüfen
         </button>
+        <span class="shortcut-hint" id="checkHint"></span>
         <button class="btn btn-ghost" id="clearBtn">Leeren</button>
       </div>
 
@@ -120,6 +128,7 @@
   import { getDueCards, updateCardLevel, getSessionStats } from './services/LeitnerService.js';
   import { evaluate } from './services/EvaluationService.js';
   import { startRecording, stopRecording, transcribe } from './services/WhisperService.js';
+  import { SettingsService } from './services/SettingsService.js';
 
   // ── State ──────────────────────────────────────────────────────────────
   const params = new URLSearchParams(location.search);
@@ -132,6 +141,9 @@
   let answered = [];   // {cardId, correct}[]
   let isRecording = false;
   let evaluated = false;
+  let evaluating = false;
+  let transcribing = false;
+  let checkBtnNextAction = false;
 
   // ── DOM refs ───────────────────────────────────────────────────────────
   const deckNameEl   = document.getElementById('deckName');
@@ -147,6 +159,8 @@
   const voiceLabel   = document.getElementById('voiceLabel');
   const checkBtn     = document.getElementById('checkBtn');
   const clearBtn     = document.getElementById('clearBtn');
+  const micHint      = document.getElementById('micHint');
+  const checkHint    = document.getElementById('checkHint');
   const prevBtn      = document.getElementById('prevBtn');
   const nextBtn      = document.getElementById('nextBtn');
   const navCurrentEl = document.getElementById('navCurrent');
@@ -172,12 +186,15 @@
     }
 
     navTotalEl.textContent = dueCards.length;
+    renderShortcutHints();
     renderCard();
   }
 
   // ── Render current card ────────────────────────────────────────────────
   function renderCard() {
     evaluated = false;
+    checkBtnNextAction = false;
+    checkBtn.onclick = null;
     const card = dueCards[currentIndex];
     questionEl.textContent = card.question;
     answerEl.textContent   = card.answer;
@@ -193,7 +210,7 @@
     navTotalEl.textContent   = dueCards.length;
     levelBadge.textContent   = `Level ${card.level}`;
     prevBtn.disabled = currentIndex === 0;
-    nextBtn.disabled = true; // enabled only after evaluation
+    nextBtn.disabled = currentIndex >= dueCards.length - 1;
 
     // header progress (how many answered / total due)
     const answeredCount = answered.filter(a => dueCards.some(c => c.id === a.cardId)).length;
@@ -231,8 +248,10 @@
       voiceLabel.textContent = 'Transkribiere …';
       waveEls.forEach(b => b.classList.remove('active'));
       isRecording = false;
+      transcribing = true;
       const result = await stopRecording();
       if (result && result.success === false) {
+        transcribing = false;
         voiceLabel.textContent = 'Mikrofon – klicke zum Sprechen';
         statusBadge.textContent = 'Bereit';
         statusBadge.style.color = 'var(--text-muted)';
@@ -248,17 +267,28 @@
         voiceLabel.textContent = 'Transkriptions-Fehler';
         statusBadge.textContent = 'Fehler';
         statusBadge.style.color = 'var(--red)';
+      } finally {
+        transcribing = false;
       }
     }
   });
 
   // ── Evaluate ──────────────────────────────────────────────────────────
   checkBtn.addEventListener('click', async () => {
-    if (evaluated) return;
+    // "Nächste Karte"-Modus: Karte weiterschalten statt auswerten
+    if (checkBtnNextAction) {
+      checkBtnNextAction = false;
+      currentIndex++;
+      renderCard();
+      return;
+    }
+
+    if (evaluating || evaluated) return;
     const userAns = userAnswerEl.value.trim();
     if (!userAns) return;
 
     const card = dueCards[currentIndex];
+    evaluating = true;
     checkBtn.disabled = true;
     statusBadge.textContent = 'KI prüft …';
     statusBadge.style.color = 'var(--accent)';
@@ -267,6 +297,7 @@
     try {
       result = await evaluate(card.question, card.answer, userAns);
     } catch (err) {
+      evaluating = false;
       evalBox.innerHTML = `<div class="eval-result wrong"><div class="eval-icon">!</div><span>Fehler: ${escHtml(err.message)}</span></div>`;
       evalBox.style.display = 'block';
       statusBadge.textContent = 'Fehler';
@@ -275,6 +306,7 @@
       return;
     }
 
+    evaluating = false;
     evaluated = true;
     answered.push({ cardId: card.id, correct: result.correct });
 
@@ -310,7 +342,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         Nächste Karte`;
       checkBtn.disabled = false;
-      checkBtn.onclick = () => { currentIndex++; renderCard(); checkBtn.onclick = null; };
+      checkBtnNextAction = true;
       nextBtn.disabled = false;
     } else {
       // Last card — finish session
@@ -328,10 +360,12 @@
 
   // ── Navigation ────────────────────────────────────────────────────────
   prevBtn.addEventListener('click', () => {
+    if (evaluating) return;
     if (currentIndex > 0) { currentIndex--; renderCard(); }
   });
   nextBtn.addEventListener('click', () => {
-    if (evaluated && currentIndex < dueCards.length - 1) { currentIndex++; renderCard(); }
+    if (evaluating || transcribing) return;
+    if (currentIndex < dueCards.length - 1) { currentIndex++; renderCard(); }
   });
 
   // ── Clear ─────────────────────────────────────────────────────────────
@@ -371,6 +405,72 @@
     document.getElementById('reviewFooter').style.display = 'none';
     document.getElementById('summaryMain').style.display = 'flex';
   }
+
+  // ── Shortcut hints ────────────────────────────────────────────────────
+  function renderShortcutHints() {
+    const scheme = SettingsService.getKeyboardScheme();
+    if (scheme === 'arrows') {
+      micHint.innerHTML   = `<kbd class="kbd">↑</kbd>`;
+      checkHint.innerHTML = `<kbd class="kbd">↑</kbd>`;
+    } else {
+      micHint.innerHTML   = `<kbd class="kbd">Space</kbd>`;
+      checkHint.innerHTML = `<kbd class="kbd">Enter</kbd>`;
+    }
+  }
+
+  // ── Keyboard handler ──────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (document.activeElement === userAnswerEl) return;
+
+    const scheme = SettingsService.getKeyboardScheme();
+
+    // ── Navigation (beide Schemas) ──────────────────────────────────────
+    if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      if (!evaluating && !transcribing && currentIndex > 0) { currentIndex--; renderCard(); }
+      return;
+    }
+    if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (!evaluating && !transcribing && currentIndex < dueCards.length - 1) {
+        currentIndex++; renderCard();
+      }
+      return;
+    }
+
+    // ── Leeren (beide Schemas) ───────────────────────────────────────────
+    if (e.code === 'Delete') {
+      e.preventDefault();
+      clearBtn.click();
+      return;
+    }
+
+    // ── Space-Enter-Schema ───────────────────────────────────────────────
+    if (scheme === 'space-enter') {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        micBtn.click();
+      } else if (e.code === 'Enter') {
+        e.preventDefault();
+        if (!checkBtn.disabled) checkBtn.click();
+      }
+      return;
+    }
+
+    // ── Arrows-Schema: ↑ = Alles ─────────────────────────────────────────
+    if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      if (isRecording) {
+        micBtn.click();                                        // Aufnahme stoppen
+      } else if (transcribing || evaluating) {
+        // warten — nichts tun
+      } else if (!evaluated && !checkBtnNextAction && userAnswerEl.value.trim() === '') {
+        micBtn.click();                                        // Aufnahme starten
+      } else if (!checkBtn.disabled) {
+        checkBtn.click();                                      // Prüfen oder Nächste Karte
+      }
+    }
+  });
 
   // ── Helpers ───────────────────────────────────────────────────────────
   function escHtml(str) {

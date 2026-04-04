@@ -148,16 +148,6 @@ describe('POST /api/admin/pull-model — SSE streaming', () => {
 
   test('streams SSE events and ends with complete event', (done) => {
     const chunks = [];
-    const req = http.request(
-      {
-        hostname: '127.0.0.1',
-        port: fakeOllamaPort, // will be replaced by app's port below
-        path: '/api/admin/pull-model',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-    // Use supertest to get the app's port via a listening server
     const server = app.listen(0, '127.0.0.1', () => {
       const port = server.address().port;
       const sseReq = http.request(
@@ -182,7 +172,6 @@ describe('POST /api/admin/pull-model — SSE streaming', () => {
       sseReq.write('{"model":"llama3.1:8b"}');
       sseReq.end();
     });
-    req.destroy(); // unused
   });
 });
 

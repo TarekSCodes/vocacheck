@@ -25,9 +25,13 @@ Key evaluation rules:
 - Bullet points, keywords, or paraphrased sentences are fully acceptable
   if they convey the correct meaning.
 - Minor grammatical errors or incomplete sentences do not make an answer wrong.
+- Synonyms, paraphrases, and slightly different but equivalent phrasings of
+  a concept are correct — only mark wrong if the meaning is factually different.
+- The order in which items are listed does NOT matter UNLESS the question
+  explicitly asks for a specific order or sequence.
 - An answer is correct if its core statements match the intended meaning
   of the model answer.
-- An answer is wrong if it contains factually incorrect statements or
+- An answer is wrong ONLY if it contains factually incorrect statements or
   misses the essential concept entirely.
 
 Always respond ONLY with a valid JSON object. No markdown, no explanation outside JSON:

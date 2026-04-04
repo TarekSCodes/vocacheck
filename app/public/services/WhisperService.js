@@ -15,7 +15,7 @@
 import { WhisperConnectionError } from './errors.js';
 import { LoggerService } from './LoggerService.js';
 
-const TRANSCRIBE_URL = '/api/whisper/asr?language=auto';
+const TRANSCRIBE_URL = '/api/whisper/asr?output=json';
 
 let _recorder = null;
 let _chunks = [];

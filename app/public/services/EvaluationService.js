@@ -10,12 +10,12 @@ import { InvalidResponseError } from './errors.js';
 import { LoggerService } from './LoggerService.js';
 
 /**
- * System prompt sent to Ollama with every evaluation request (SPEC §2.5).
- * Hardcoded — never modified at runtime.
+ * Default system prompt sent to Ollama with every evaluation request (SPEC §2.5).
+ * Used as fallback when no custom prompt is stored in SettingsService.
  *
  * @type {string}
  */
-const SYSTEM_PROMPT = `You are an assistant that evaluates flashcard answers for a student learning tool.
+export const DEFAULT_SYSTEM_PROMPT = `You are an assistant that evaluates flashcard answers for a student learning tool.
 
 Your task is to assess whether the user's answer is semantically correct,
 not whether it is word-for-word identical to the model answer.
@@ -25,9 +25,13 @@ Key evaluation rules:
 - Bullet points, keywords, or paraphrased sentences are fully acceptable
   if they convey the correct meaning.
 - Minor grammatical errors or incomplete sentences do not make an answer wrong.
+- Synonyms, paraphrases, and slightly different but equivalent phrasings of
+  a concept are correct — only mark wrong if the meaning is factually different.
+- The order in which items are listed does NOT matter UNLESS the question
+  explicitly asks for a specific order or sequence.
 - An answer is correct if its core statements match the intended meaning
   of the model answer.
-- An answer is wrong if it contains factually incorrect statements or
+- An answer is wrong ONLY if it contains factually incorrect statements or
   misses the essential concept entirely.
 
 Always respond ONLY with a valid JSON object. No markdown, no explanation outside JSON:
@@ -92,7 +96,8 @@ export async function evaluate(question, modelAnswer, userAnswer) {
   LoggerService.debug('EvaluationService', `evaluate — model: ${model}`);
 
   const userPrompt = buildPrompt(question, modelAnswer, userAnswer);
-  const raw = await generate(userPrompt, SYSTEM_PROMPT, model);
+  const systemPrompt = SettingsService.getSystemPrompt() ?? DEFAULT_SYSTEM_PROMPT;
+  const raw = await generate(userPrompt, systemPrompt, model);
 
   const result = parseResponse(raw);
   LoggerService.debug('EvaluationService', `evaluate — correct: ${result.correct}`);

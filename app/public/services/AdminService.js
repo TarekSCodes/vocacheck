@@ -9,6 +9,7 @@
  */
 
 import { LoggerService } from './LoggerService.js';
+import { VocaCheckError } from './errors.js';
 
 /**
  * Checks whether Ollama is reachable and at least one model is installed.
@@ -20,9 +21,15 @@ import { LoggerService } from './LoggerService.js';
  */
 export async function getStatus() {
   LoggerService.debug('AdminService', 'getStatus');
-  const res = await fetch('/api/admin/status');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch('/api/admin/status');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('AdminService', 'getStatus — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -33,9 +40,15 @@ export async function getStatus() {
  */
 export async function getGpuStatus() {
   LoggerService.debug('AdminService', 'getGpuStatus');
-  const res = await fetch('/api/admin/gpu-status');
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch('/api/admin/gpu-status');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('AdminService', 'getGpuStatus — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -47,9 +60,15 @@ export async function getGpuStatus() {
  */
 export async function restartWhisper() {
   LoggerService.debug('AdminService', 'restartWhisper');
-  const res = await fetch('/api/admin/restart-whisper', { method: 'POST' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch('/api/admin/restart-whisper', { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  } catch (err) {
+    if (err.message && err.message.startsWith('HTTP ')) throw err;
+    LoggerService.error('AdminService', 'restartWhisper — network error', err.message);
+    throw new VocaCheckError(`Backend nicht erreichbar: ${err.message}`);
+  }
 }
 
 /**
@@ -100,13 +119,18 @@ export async function pullModel(model, onProgress) {
       const json = trimmed.slice('data:'.length).trim();
       if (!json) continue;
 
+      let event;
       try {
-        const event = JSON.parse(json);
-        LoggerService.debug('AdminService', `pullModel event: ${event.status}`);
-        if (typeof onProgress === 'function') onProgress(event);
+        event = JSON.parse(json);
       } catch {
         LoggerService.warn('AdminService', `pullModel — could not parse SSE line: ${json}`);
+        continue;
       }
+      LoggerService.debug('AdminService', `pullModel event: ${event.status}`);
+      if (event.error) {
+        throw new Error(event.error);
+      }
+      if (typeof onProgress === 'function') onProgress(event);
     }
   }
 }

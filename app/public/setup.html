@@ -1,12 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VocaCheck — Setup</title>
+  <title>VocaCheck — Einrichtung</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- First-run assistant -->
+
+<header>
+  <span class="logo">Voca<span>Check</span></span>
+</header>
+
+<main class="centered">
+  <div class="setup-card">
+
+    <div>
+      <div class="setup-title">Willkommen bei VocaCheck</div>
+      <p class="setup-sub" id="statusMsg">
+        Ollama ist erreichbar, aber noch kein Modell installiert.
+        Lade ein Modell herunter, um loszulegen.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="modelInput">Ollama-Modell</label>
+      <input class="form-input" id="modelInput" type="text" value="llama3.1:8b"
+             placeholder="z.B. llama3.1:8b" autocomplete="off">
+      <p style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
+        Beispiele: <code style="color:var(--accent)">llama3.1:8b</code> · <code style="color:var(--accent)">mistral:7b</code> · <code style="color:var(--accent)">phi3:mini</code>
+      </p>
+    </div>
+
+    <div>
+      <button class="btn btn-primary" id="pullBtn" style="width:100%;justify-content:center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Modell herunterladen
+      </button>
+    </div>
+
+    <pre class="console-log" id="consoleLog"></pre>
+
+    <div class="status-msg" id="doneMsg" style="font-size:.9rem"></div>
+
+  </div>
+</main>
+
+<script type="module">
+  import { getStatus, pullModel } from './services/AdminService.js';
+
+  const modelInput = document.getElementById('modelInput');
+  const pullBtn    = document.getElementById('pullBtn');
+  const consoleEl  = document.getElementById('consoleLog');
+  const statusMsg  = document.getElementById('statusMsg');
+  const doneMsg    = document.getElementById('doneMsg');
+
+  // ── Check if already set up ───────────────────────────────────────────
+  try {
+    const status = await getStatus();
+    if (status.modelInstalled) {
+      location.href = 'index.html';
+    } else if (!status.ollamaReachable) {
+      statusMsg.textContent = 'Ollama ist nicht erreichbar. Stelle sicher, dass der Docker-Stack läuft.';
+    }
+  } catch {
+    statusMsg.textContent = 'Ollama ist nicht erreichbar. Stelle sicher, dass der Docker-Stack läuft.';
+  }
+
+  // ── Log helper ────────────────────────────────────────────────────────
+  function appendLog(text, cls) {
+    const span = document.createElement('span');
+    if (cls) span.className = cls;
+    span.textContent = text + '\n';
+    consoleEl.appendChild(span);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  function formatEvent(event) {
+    const parts = [event.status ?? ''];
+    if (event.completed != null && event.total != null && event.total > 0) {
+      const pct = Math.round(event.completed / event.total * 100);
+      parts.push(`${pct}% (${humanBytes(event.completed)} / ${humanBytes(event.total)})`);
+    } else if (event.digest) {
+      parts.push(event.digest.slice(0, 20) + '…');
+    }
+    return parts.filter(Boolean).join(' — ');
+  }
+
+  function humanBytes(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + ' GB';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + ' MB';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  // ── Pull model ────────────────────────────────────────────────────────
+  pullBtn.addEventListener('click', async () => {
+    const model = modelInput.value.trim();
+    if (!model) return;
+
+    pullBtn.disabled = true;
+    modelInput.disabled = true;
+    doneMsg.className = 'status-msg';
+    consoleEl.innerHTML = '';
+    consoleEl.classList.add('visible');
+
+    appendLog(`> Starte Download: ${model}`);
+
+    let done = false;
+    try {
+      await pullModel(model, (event) => {
+        if (event.status === 'success' || event.status === 'complete') {
+          done = true;
+          appendLog('✓ Abgeschlossen.', 'log-done');
+        } else {
+          appendLog(formatEvent(event));
+        }
+      });
+    } catch (err) {
+      appendLog(`✗ Fehler: ${err.message}`, 'log-err');
+      doneMsg.textContent = `Download fehlgeschlagen: ${err.message}`;
+      doneMsg.className = 'status-msg error';
+      pullBtn.disabled = false;
+      modelInput.disabled = false;
+      return;
+    }
+
+    if (!done) {
+      appendLog('✓ Abgeschlossen.', 'log-done');
+    }
+
+    doneMsg.textContent = 'Modell erfolgreich geladen ✓ — Weiterleitung …';
+    doneMsg.className = 'status-msg success';
+    setTimeout(() => { location.href = 'index.html'; }, 2000);
+  });
+</script>
+
 </body>
 </html>

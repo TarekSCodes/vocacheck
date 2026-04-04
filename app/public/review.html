@@ -1,12 +1,389 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VocaCheck — Review</title>
+  <title>VocaCheck — Lernen</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Card review -->
+
+<!-- TOPBAR -->
+<header>
+  <a href="index.html" class="logo">Voca<span>Check</span></a>
+  <div class="deck-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+    <strong id="deckName">Deck laden…</strong>
+  </div>
+  <div class="header-actions">
+    <button class="btn-icon" id="shuffleBtn" title="Karten mischen">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+    </button>
+    <div class="progress-wrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <span id="progressText">0 / 0</span>
+    </div>
+  </div>
+</header>
+
+<!-- MAIN: two-column split -->
+<main class="split" id="reviewMain">
+
+  <!-- LEFT: FLASHCARD -->
+  <div class="panel" id="cardPanel">
+    <div class="panel-header">
+      <span class="panel-label">Lernkarte</span>
+      <span class="card-number" id="cardNum">– / –</span>
+    </div>
+    <div class="card-body">
+      <div class="question-block">
+        <p class="question-text" id="questionText">Karte wird geladen…</p>
+      </div>
+      <div class="answer-block" id="answerBlock" style="display:none">
+        <p class="answer-text" id="answerText"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: INPUT -->
+  <div class="panel" id="inputPanel">
+    <div class="panel-header">
+      <span class="panel-label">Deine Antwort</span>
+      <span id="statusBadge" style="font-size:.72rem; color:var(--text-muted)">Bereit</span>
+    </div>
+    <div class="input-area-wrap">
+
+      <div class="voice-bar">
+        <button class="mic-btn" id="micBtn" title="Spracheingabe">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8"  y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+        <div class="wave-indicator" id="waveIndicator">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+        <span id="voiceLabel" style="flex:1">Mikrofon – klicke zum Sprechen</span>
+      </div>
+
+      <div class="textarea-wrap">
+        <textarea id="userAnswer" placeholder="Tippe oder diktiere deine Antwort hier …"></textarea>
+      </div>
+
+      <div id="evalBox" style="display:none"></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="checkBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+          Antwort prüfen
+        </button>
+        <button class="btn btn-ghost" id="clearBtn">Leeren</button>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<!-- SUMMARY SCREEN (hidden until session complete) -->
+<main class="centered" id="summaryMain" style="display:none">
+  <div class="summary-card">
+    <div class="summary-title">Session abgeschlossen ✓</div>
+    <p style="color:var(--text-secondary);font-size:.9rem">Alle fälligen Karten bearbeitet.</p>
+    <div class="summary-stats" id="summaryStats"></div>
+    <a href="index.html" class="btn btn-primary" style="justify-content:center">Zurück zur Übersicht</a>
+  </div>
+</main>
+
+<!-- FOOTER NAV -->
+<footer id="reviewFooter">
+  <button class="nav-btn" id="prevBtn" disabled>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <div class="card-counter"><strong id="navCurrent">–</strong> / <span id="navTotal">–</span></div>
+  <span class="badge-level" id="levelBadge">Level –</span>
+  <button class="nav-btn" id="nextBtn" disabled>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</footer>
+
+<script type="module">
+  import { getCards, updateCard } from './services/CardService.js';
+  import { getAllDecks, updateDeck } from './services/DeckService.js';
+  import { getDueCards, updateCardLevel, getSessionStats } from './services/LeitnerService.js';
+  import { evaluate } from './services/EvaluationService.js';
+  import { startRecording, stopRecording, transcribe } from './services/WhisperService.js';
+
+  // ── State ──────────────────────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const deckId = params.get('deckId');
+  if (!deckId) { location.href = 'index.html'; }
+
+  let deck = null;
+  let dueCards = [];
+  let currentIndex = 0;
+  let answered = [];   // {cardId, correct}[]
+  let isRecording = false;
+  let evaluated = false;
+
+  // ── DOM refs ───────────────────────────────────────────────────────────
+  const deckNameEl   = document.getElementById('deckName');
+  const cardNumEl    = document.getElementById('cardNum');
+  const questionEl   = document.getElementById('questionText');
+  const answerBlockEl = document.getElementById('answerBlock');
+  const answerEl     = document.getElementById('answerText');
+  const statusBadge  = document.getElementById('statusBadge');
+  const evalBox      = document.getElementById('evalBox');
+  const userAnswerEl = document.getElementById('userAnswer');
+  const micBtn       = document.getElementById('micBtn');
+  const waveEls      = document.querySelectorAll('#waveIndicator .wave-bar');
+  const voiceLabel   = document.getElementById('voiceLabel');
+  const checkBtn     = document.getElementById('checkBtn');
+  const clearBtn     = document.getElementById('clearBtn');
+  const prevBtn      = document.getElementById('prevBtn');
+  const nextBtn      = document.getElementById('nextBtn');
+  const navCurrentEl = document.getElementById('navCurrent');
+  const navTotalEl   = document.getElementById('navTotal');
+  const levelBadge   = document.getElementById('levelBadge');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+
+  // ── Load data ──────────────────────────────────────────────────────────
+  async function init() {
+    const [decks, cards] = await Promise.all([getAllDecks(), getCards(deckId)]);
+    deck = decks.find(d => d.id === deckId);
+    if (!deck) { location.href = 'index.html'; return; }
+
+    deckNameEl.textContent = deck.name;
+    document.title = `VocaCheck — ${deck.name}`;
+
+    dueCards = getDueCards(cards, deck.sessionCount ?? 0);
+    if (dueCards.length === 0) {
+      // nothing due — skip directly to summary
+      await finishSession(cards);
+      return;
+    }
+
+    navTotalEl.textContent = dueCards.length;
+    renderCard();
+  }
+
+  // ── Render current card ────────────────────────────────────────────────
+  function renderCard() {
+    evaluated = false;
+    const card = dueCards[currentIndex];
+    questionEl.textContent = card.question;
+    answerEl.textContent   = card.answer;
+    answerBlockEl.style.display = 'none';
+    evalBox.style.display  = 'none';
+    evalBox.innerHTML      = '';
+    userAnswerEl.value     = '';
+    statusBadge.textContent = 'Bereit';
+    statusBadge.style.color = 'var(--text-muted)';
+
+    // footer
+    navCurrentEl.textContent = currentIndex + 1;
+    navTotalEl.textContent   = dueCards.length;
+    levelBadge.textContent   = `Level ${card.level}`;
+    prevBtn.disabled = currentIndex === 0;
+    nextBtn.disabled = true; // enabled only after evaluation
+
+    // header progress (how many answered / total due)
+    const answeredCount = answered.filter(a => dueCards.some(c => c.id === a.cardId)).length;
+    const pct = dueCards.length > 0 ? (answeredCount / dueCards.length * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `${answeredCount} / ${dueCards.length}`;
+    cardNumEl.textContent    = `${currentIndex + 1} / ${dueCards.length}`;
+
+    // restore check button
+    checkBtn.textContent = '';
+    checkBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      Antwort prüfen`;
+    checkBtn.disabled = false;
+  }
+
+  // ── Mic toggle ────────────────────────────────────────────────────────
+  micBtn.addEventListener('click', async () => {
+    if (!isRecording) {
+      try {
+        await startRecording();
+        isRecording = true;
+        micBtn.classList.add('recording');
+        voiceLabel.textContent = 'Aufnahme läuft … klicke zum Stoppen';
+        statusBadge.textContent = '● REC';
+        statusBadge.style.color = 'var(--red)';
+        waveEls.forEach(b => b.classList.add('active'));
+      } catch (err) {
+        statusBadge.textContent = 'Mikrofon-Fehler';
+        statusBadge.style.color = 'var(--red)';
+        voiceLabel.textContent = err.message;
+      }
+    } else {
+      micBtn.classList.remove('recording');
+      voiceLabel.textContent = 'Transkribiere …';
+      waveEls.forEach(b => b.classList.remove('active'));
+      isRecording = false;
+      const result = await stopRecording();
+      if (result && result.success === false) {
+        voiceLabel.textContent = 'Mikrofon – klicke zum Sprechen';
+        statusBadge.textContent = 'Bereit';
+        statusBadge.style.color = 'var(--text-muted)';
+        return;
+      }
+      try {
+        const text = await transcribe(result);
+        userAnswerEl.value += (userAnswerEl.value ? ' ' : '') + text;
+        voiceLabel.textContent = 'Mikrofon – klicke zum Sprechen';
+        statusBadge.textContent = 'Bereit';
+        statusBadge.style.color = 'var(--text-muted)';
+      } catch (err) {
+        voiceLabel.textContent = 'Transkriptions-Fehler';
+        statusBadge.textContent = 'Fehler';
+        statusBadge.style.color = 'var(--red)';
+      }
+    }
+  });
+
+  // ── Evaluate ──────────────────────────────────────────────────────────
+  checkBtn.addEventListener('click', async () => {
+    if (evaluated) return;
+    const userAns = userAnswerEl.value.trim();
+    if (!userAns) return;
+
+    const card = dueCards[currentIndex];
+    checkBtn.disabled = true;
+    statusBadge.textContent = 'KI prüft …';
+    statusBadge.style.color = 'var(--accent)';
+
+    let result;
+    try {
+      result = await evaluate(card.question, card.answer, userAns);
+    } catch (err) {
+      evalBox.innerHTML = `<div class="eval-result wrong"><div class="eval-icon">!</div><span>Fehler: ${escHtml(err.message)}</span></div>`;
+      evalBox.style.display = 'block';
+      statusBadge.textContent = 'Fehler';
+      statusBadge.style.color = 'var(--red)';
+      checkBtn.disabled = false;
+      return;
+    }
+
+    evaluated = true;
+    answered.push({ cardId: card.id, correct: result.correct });
+
+    // Show eval result
+    const cls = result.correct ? 'correct' : 'wrong';
+    const icon = result.correct ? '✓' : '✗';
+    evalBox.innerHTML = `<div class="eval-result ${cls}"><div class="eval-icon">${icon}</div><span>${escHtml(result.feedback)}</span></div>`;
+    evalBox.style.display = 'block';
+
+    // Reveal answer
+    answerBlockEl.style.display = 'block';
+
+    // Update status badge
+    statusBadge.textContent = result.correct ? '✓ Richtig' : '✗ Falsch';
+    statusBadge.style.color = result.correct ? 'var(--green)' : 'var(--red)';
+
+    // Persist level update
+    const updatedCard = updateCardLevel(card, result.correct);
+    updateCard(card.id, { level: updatedCard.level, correctStreak: updatedCard.correctStreak })
+      .catch(() => {});
+
+    // Update level badge
+    levelBadge.textContent = `Level ${updatedCard.level}`;
+
+    // Update progress
+    const pct = answered.length / dueCards.length * 100;
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `${answered.length} / ${dueCards.length}`;
+
+    // Switch button to "Nächste Karte"
+    if (currentIndex < dueCards.length - 1) {
+      checkBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        Nächste Karte`;
+      checkBtn.disabled = false;
+      checkBtn.onclick = () => { currentIndex++; renderCard(); checkBtn.onclick = null; };
+      nextBtn.disabled = false;
+    } else {
+      // Last card — finish session
+      checkBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        Session abschließen`;
+      checkBtn.disabled = false;
+      checkBtn.onclick = async () => {
+        checkBtn.disabled = true;
+        const allCards = await getCards(deckId);
+        await finishSession(allCards);
+      };
+    }
+  });
+
+  // ── Navigation ────────────────────────────────────────────────────────
+  prevBtn.addEventListener('click', () => {
+    if (currentIndex > 0) { currentIndex--; renderCard(); }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (evaluated && currentIndex < dueCards.length - 1) { currentIndex++; renderCard(); }
+  });
+
+  // ── Clear ─────────────────────────────────────────────────────────────
+  clearBtn.addEventListener('click', () => { userAnswerEl.value = ''; });
+
+  // ── Shuffle ───────────────────────────────────────────────────────────
+  document.getElementById('shuffleBtn').addEventListener('click', () => {
+    for (let i = dueCards.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [dueCards[i], dueCards[j]] = [dueCards[j], dueCards[i]];
+    }
+    currentIndex = 0;
+    answered = [];
+    renderCard();
+  });
+
+  // ── Session complete ───────────────────────────────────────────────────
+  async function finishSession(allCards) {
+    try {
+      await updateDeck(deckId, { sessionCount: (deck.sessionCount ?? 0) + 1 });
+    } catch { /* non-critical */ }
+
+    const stats = getSessionStats(allCards);
+    const COLOURS = [
+      { cls: 'lv1', label: 'Level 1', border: 'rgba(244,71,107,.3)', text: '#fca5a5' },
+      { cls: 'lv2', label: 'Level 2', border: 'rgba(251,146,60,.3)', text: '#fdba74' },
+      { cls: 'lv3', label: 'Level 3', border: 'rgba(250,204,21,.3)', text: '#fde047' },
+      { cls: 'lv4', label: 'Level 4', border: 'rgba(163,230,53,.3)', text: '#bef264' },
+      { cls: 'lv5', label: 'Level 5', border: 'rgba(34,211,122,.3)', text: '#86efac' },
+    ];
+    const statsEl = document.getElementById('summaryStats');
+    statsEl.innerHTML = COLOURS.map(({ label, border, text }, i) =>
+      `<div class="stat-pill" style="border-color:${border};color:${text}">${label}: ${stats[i + 1]}</div>`
+    ).join('');
+
+    document.getElementById('reviewMain').style.display = 'none';
+    document.getElementById('reviewFooter').style.display = 'none';
+    document.getElementById('summaryMain').style.display = 'flex';
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────
+  await init();
+</script>
+
 </body>
 </html>

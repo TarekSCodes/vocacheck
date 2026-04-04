@@ -1,12 +1,208 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VocaCheck</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Home / deck overview -->
+
+<header>
+  <span class="logo">Voca<span>Check</span></span>
+  <div class="header-actions">
+    <button class="btn btn-primary" id="newDeckBtn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Neues Deck
+    </button>
+    <a href="import.html" class="nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importieren
+    </a>
+    <a href="settings.html" class="nav-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Einstellungen
+    </a>
+  </div>
+</header>
+
+<main>
+  <div id="deckGrid" class="deck-grid"></div>
+</main>
+
+<!-- New Deck Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">Neues Deck erstellen</div>
+    <div class="form-group">
+      <label class="form-label" for="deckName">Name</label>
+      <input class="form-input" id="deckName" type="text" placeholder="z.B. AP2 – IHK Lernkarten" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="deckDesc">Beschreibung (optional)</label>
+      <input class="form-input" id="deckDesc" type="text" placeholder="Kurze Beschreibung des Decks">
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="createDeckBtn">Erstellen</button>
+      <button class="btn btn-ghost" id="cancelModalBtn">Abbrechen</button>
+    </div>
+    <div class="status-msg" id="modalStatus"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { getAllDecks, createDeck, deleteDeck } from './services/DeckService.js';
+  import { getCards } from './services/CardService.js';
+  import { getSessionStats } from './services/LeitnerService.js';
+  import { getStatus } from './services/AdminService.js';
+
+  const LEVEL_COLOURS = ['lv1', 'lv2', 'lv3', 'lv4', 'lv5'];
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── First-run guard ──────────────────────────────────────────────────
+  async function checkSetup() {
+    try {
+      const status = await getStatus();
+      if (!status.modelInstalled) {
+        location.href = 'setup.html';
+      }
+    } catch {
+      // Ollama unreachable → setup
+      location.href = 'setup.html';
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────
+  function buildLeitnerBar(stats, total) {
+    if (total === 0) {
+      return '<div class="leitner-bar"><div class="leitner-segment empty"></div></div>';
+    }
+    const segs = LEVEL_COLOURS.map((cls, i) => {
+      const count = stats[i + 1] || 0;
+      const pct = (count / total * 100).toFixed(1);
+      return count > 0
+        ? `<div class="leitner-segment ${cls}" style="width:${pct}%" title="Level ${i + 1}: ${count}"></div>`
+        : '';
+    }).join('');
+    return `<div class="leitner-bar">${segs}</div>`;
+  }
+
+  function renderDeckCard(deck, cards) {
+    const stats = getSessionStats(cards);
+    const total = cards.length;
+    const leitnerBar = buildLeitnerBar(stats, total);
+    const div = document.createElement('div');
+    div.className = 'deck-card';
+    div.dataset.deckId = deck.id;
+    div.innerHTML = `
+      <button class="deck-delete-btn" data-id="${deck.id}" title="Deck löschen" aria-label="Deck löschen">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div>
+        <div class="deck-card-name">${escHtml(deck.name)}</div>
+        ${deck.description ? `<div class="deck-card-desc">${escHtml(deck.description)}</div>` : ''}
+      </div>
+      ${leitnerBar}
+      <div class="deck-card-meta">${total} Karte${total !== 1 ? 'n' : ''} &middot; Session ${deck.sessionCount ?? 0}</div>
+      <div class="deck-card-actions">
+        <a href="review.html?deckId=${deck.id}" class="btn btn-primary" style="flex:1;justify-content:center">
+          Lernen &rarr;
+        </a>
+        <a href="manage.html?deckId=${deck.id}" class="btn btn-ghost">
+          Verwalten
+        </a>
+      </div>
+    `;
+    div.querySelector('.deck-delete-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleDelete(deck.id, deck.name);
+    });
+    return div;
+  }
+
+  async function loadDecks() {
+    const grid = document.getElementById('deckGrid');
+    grid.innerHTML = '';
+    const decks = await getAllDecks();
+    if (decks.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin:0 auto;display:block"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+          <p>Noch keine Decks vorhanden.</p>
+          <p style="margin-top:4px">Erstelle dein erstes Deck mit dem Button oben.</p>
+        </div>`;
+      return;
+    }
+    const allCards = await Promise.all(decks.map(d => getCards(d.id)));
+    decks.forEach((deck, i) => {
+      grid.appendChild(renderDeckCard(deck, allCards[i]));
+    });
+  }
+
+  async function handleDelete(deckId, name) {
+    if (!confirm(`Deck „${name}" und alle Karten darin löschen?`)) return;
+    await deleteDeck(deckId);
+    await loadDecks();
+  }
+
+  // ── Modal ────────────────────────────────────────────────────────────
+  const overlay  = document.getElementById('modalOverlay');
+  const nameInput = document.getElementById('deckName');
+  const descInput = document.getElementById('deckDesc');
+  const statusEl  = document.getElementById('modalStatus');
+
+  function openModal() {
+    nameInput.value = '';
+    descInput.value = '';
+    statusEl.className = 'status-msg';
+    overlay.classList.add('open');
+    nameInput.focus();
+  }
+  function closeModal() {
+    overlay.classList.remove('open');
+  }
+
+  document.getElementById('newDeckBtn').addEventListener('click', openModal);
+  document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+  document.getElementById('createDeckBtn').addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+      statusEl.textContent = 'Bitte einen Namen eingeben.';
+      statusEl.className = 'status-msg error';
+      return;
+    }
+    const btn = document.getElementById('createDeckBtn');
+    btn.disabled = true;
+    try {
+      await createDeck({ name, description: descInput.value.trim() || undefined });
+      closeModal();
+      await loadDecks();
+    } catch (err) {
+      statusEl.textContent = `Fehler: ${err.message}`;
+      statusEl.className = 'status-msg error';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('createDeckBtn').click();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────
+  await checkSetup();
+  await loadDecks();
+</script>
+
 </body>
 </html>

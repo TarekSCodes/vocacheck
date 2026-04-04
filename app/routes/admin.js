@@ -210,9 +210,18 @@ router.post('/restart-whisper', async (req, res, next) => {
  * @param {import('express').Response} res
  * @param {import('express').NextFunction} next
  */
-router.post('/pull-model', async (req, res, _next) => {
+router.post('/pull-model', async (req, res, next) => {
   const { model } = req.body || {};
   if (!model) return res.status(400).json({ error: 'model is required' });
+
+  let ollamaUrl;
+  let payload;
+  try {
+    ollamaUrl = new URL(OLLAMA_URL);
+    payload = JSON.stringify({ model, stream: true });
+  } catch (err) {
+    return next(new AdminCommandError(`Invalid Ollama URL: ${err.message}`, { model }));
+  }
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -220,9 +229,6 @@ router.post('/pull-model', async (req, res, _next) => {
   res.flushHeaders();
 
   logger.info('AdminRoute', `Starting model pull: ${model}`);
-
-  const ollamaUrl = new URL(OLLAMA_URL);
-  const payload = JSON.stringify({ model, stream: true });
 
   const pullReq = http.request(
     {
@@ -236,15 +242,24 @@ router.post('/pull-model', async (req, res, _next) => {
       },
     },
     (pullRes) => {
+      let pullError = null;
       pullRes.on('data', (chunk) => {
         const lines = chunk.toString().split('\n').filter((l) => l.trim());
         for (const line of lines) {
           res.write(`data: ${line}\n\n`);
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.error) pullError = parsed.error;
+          } catch { /* ignore malformed lines */ }
         }
       });
       pullRes.on('end', () => {
-        logger.info('AdminRoute', `Model pull complete: ${model}`);
-        res.write('data: {"status":"complete"}\n\n');
+        if (pullError) {
+          logger.warn('AdminRoute', `Model pull failed: ${model} — ${pullError}`);
+        } else {
+          logger.info('AdminRoute', `Model pull complete: ${model}`);
+          res.write('data: {"status":"complete"}\n\n');
+        }
         res.end();
       });
     }

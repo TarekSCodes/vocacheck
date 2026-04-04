@@ -378,13 +378,13 @@ flowchart TD
   C -->|Yes| E["List containers\nGET /containers/json\nfilter: compose.service=ollama"]
   E --> F{Ollama container\nfound?}
   F -->|No — GpuNotAvailableError| G[Return gpuAvailable: false]
-  F -->|Yes| H["Inspect container\nGET /containers/{Id}/json"]
+  F -->|Yes| H["Inspect container\nGET /containers/:id/json"]
   H --> I{HostConfig.\nDeviceRequests\nexists?}
   I -->|No or empty| J[Return gpuAvailable: false]
-  I -->|Yes| K{Any DeviceRequest\nhas Capabilities\ncontaining 'gpu'?}
+  I -->|Yes| K{Any DeviceRequest\nhas Capabilities\ncontaining gpu?}
   K -->|No| J
   K -->|Yes| L[Return gpuAvailable: true]
-  D --> M([Response: 200 { gpuAvailable }])
+  D --> M([Response: 200 gpuAvailable])
   G --> M
   J --> M
   L --> M

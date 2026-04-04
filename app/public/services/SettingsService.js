@@ -6,8 +6,9 @@
  */
 
 const KEYS = {
-  OLLAMA_MODEL: 'vocacheck_ollama_model',
+  OLLAMA_MODEL:  'vocacheck_ollama_model',
   WHISPER_MODEL: 'vocacheck_whisper_model',
+  SYSTEM_PROMPT: 'vocacheck_system_prompt',
 };
 
 const DEFAULTS = {
@@ -55,6 +56,32 @@ export const SettingsService = {
    */
   setWhisperModel(model) {
     localStorage.setItem(KEYS.WHISPER_MODEL, model);
+  },
+
+  /**
+   * Returns the custom system prompt stored by the user, or `null` if none is set.
+   * Callers should fall back to `DEFAULT_SYSTEM_PROMPT` from EvaluationService.
+   *
+   * @returns {string|null}
+   */
+  getSystemPrompt() {
+    return localStorage.getItem(KEYS.SYSTEM_PROMPT);
+  },
+
+  /**
+   * Persists a custom system prompt.
+   *
+   * @param {string} prompt
+   */
+  setSystemPrompt(prompt) {
+    localStorage.setItem(KEYS.SYSTEM_PROMPT, prompt);
+  },
+
+  /**
+   * Removes the custom system prompt so EvaluationService falls back to the default.
+   */
+  resetSystemPrompt() {
+    localStorage.removeItem(KEYS.SYSTEM_PROMPT);
   },
 
   /**

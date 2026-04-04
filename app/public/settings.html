@@ -83,6 +83,25 @@
       </p>
     </div>
 
+    <!-- System prompt -->
+    <div class="settings-section">
+      <div class="settings-section-title">Antwortbewertung</div>
+      <div class="form-group">
+        <label class="form-label" for="systemPromptInput">System-Prompt</label>
+        <textarea class="form-input" id="systemPromptInput" rows="14"
+                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
+        Dieser Prompt wird bei jeder Antwortprüfung an das KI-Modell gesendet.<br>
+        „Zurücksetzen" stellt den Originaltext wieder her.
+      </p>
+      <div class="status-msg" id="promptStatus"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
+        <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
+      </div>
+    </div>
+
     <!-- System info -->
     <div class="settings-section">
       <div class="settings-section-title">System</div>
@@ -98,6 +117,7 @@
 <script type="module">
   import { SettingsService } from './services/SettingsService.js';
   import { getStatus, getGpuStatus, restartWhisper, pullModel } from './services/AdminService.js';
+  import { DEFAULT_SYSTEM_PROMPT } from './services/EvaluationService.js';
 
   // ── DOM refs ───────────────────────────────────────────────────────────
   const ollamaSelect   = document.getElementById('ollamaModel');
@@ -274,6 +294,28 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // ── System prompt ──────────────────────────────────────────────────────
+  const systemPromptEl  = document.getElementById('systemPromptInput');
+  const promptStatus    = document.getElementById('promptStatus');
+
+  systemPromptEl.value = SettingsService.getSystemPrompt() ?? DEFAULT_SYSTEM_PROMPT;
+
+  document.getElementById('savePromptBtn').addEventListener('click', () => {
+    const val = systemPromptEl.value.trim();
+    if (!val) {
+      showStatus(promptStatus, 'Prompt darf nicht leer sein.', 'error');
+      return;
+    }
+    SettingsService.setSystemPrompt(val);
+    showStatus(promptStatus, 'Gespeichert.', 'success');
+  });
+
+  document.getElementById('resetPromptBtn').addEventListener('click', () => {
+    SettingsService.resetSystemPrompt();
+    systemPromptEl.value = DEFAULT_SYSTEM_PROMPT;
+    showStatus(promptStatus, 'Standard wiederhergestellt.', 'success');
   });
 
   // ── Init ───────────────────────────────────────────────────────────────

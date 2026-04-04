@@ -87,6 +87,17 @@ describe('evaluate', () => {
     expect(result).toEqual({ correct: false, feedback: 'Needs work' });
   });
 
+  test('uses custom system prompt from SettingsService when one is stored', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    SettingsService.getSystemPrompt.mockReturnValue('Custom prompt for testing');
+    generate.mockResolvedValue('{"correct":true,"feedback":"ok"}');
+
+    await evaluate('Q', 'MA', 'UA');
+
+    const [, systemPrompt] = generate.mock.calls[0];
+    expect(systemPrompt).toBe('Custom prompt for testing');
+  });
+
   test('throws OllamaConnectionError when generate() rejects', async () => {
     SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
     generate.mockRejectedValue(new OllamaConnectionError('Ollama down'));

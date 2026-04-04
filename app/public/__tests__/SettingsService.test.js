@@ -74,6 +74,41 @@ describe('getAll', () => {
 });
 
 // ---------------------------------------------------------------------------
+// getSystemPrompt
+// ---------------------------------------------------------------------------
+describe('getSystemPrompt', () => {
+  test('returns null by default when nothing is stored', () => {
+    expect(SettingsService.getSystemPrompt()).toBeNull();
+  });
+
+  test('returns stored value after setSystemPrompt()', () => {
+    SettingsService.setSystemPrompt('My custom prompt');
+    expect(SettingsService.getSystemPrompt()).toBe('My custom prompt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setSystemPrompt
+// ---------------------------------------------------------------------------
+describe('setSystemPrompt', () => {
+  test('persists prompt to localStorage under vocacheck_system_prompt', () => {
+    SettingsService.setSystemPrompt('Test prompt');
+    expect(localStorage.getItem('vocacheck_system_prompt')).toBe('Test prompt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resetSystemPrompt
+// ---------------------------------------------------------------------------
+describe('resetSystemPrompt', () => {
+  test('removes the key so getSystemPrompt() returns null afterwards', () => {
+    SettingsService.setSystemPrompt('Something');
+    SettingsService.resetSystemPrompt();
+    expect(SettingsService.getSystemPrompt()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // setAll
 // ---------------------------------------------------------------------------
 describe('setAll', () => {

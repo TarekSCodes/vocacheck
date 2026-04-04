@@ -10,12 +10,12 @@ import { InvalidResponseError } from './errors.js';
 import { LoggerService } from './LoggerService.js';
 
 /**
- * System prompt sent to Ollama with every evaluation request (SPEC §2.5).
- * Hardcoded — never modified at runtime.
+ * Default system prompt sent to Ollama with every evaluation request (SPEC §2.5).
+ * Used as fallback when no custom prompt is stored in SettingsService.
  *
  * @type {string}
  */
-const SYSTEM_PROMPT = `You are an assistant that evaluates flashcard answers for a student learning tool.
+export const DEFAULT_SYSTEM_PROMPT = `You are an assistant that evaluates flashcard answers for a student learning tool.
 
 Your task is to assess whether the user's answer is semantically correct,
 not whether it is word-for-word identical to the model answer.
@@ -96,7 +96,8 @@ export async function evaluate(question, modelAnswer, userAnswer) {
   LoggerService.debug('EvaluationService', `evaluate — model: ${model}`);
 
   const userPrompt = buildPrompt(question, modelAnswer, userAnswer);
-  const raw = await generate(userPrompt, SYSTEM_PROMPT, model);
+  const systemPrompt = SettingsService.getSystemPrompt() ?? DEFAULT_SYSTEM_PROMPT;
+  const raw = await generate(userPrompt, systemPrompt, model);
 
   const result = parseResponse(raw);
   LoggerService.debug('EvaluationService', `evaluate — correct: ${result.correct}`);

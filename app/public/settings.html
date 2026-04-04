@@ -6,6 +6,32 @@
   <title>VocaCheck — Einstellungen</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .scheme-picker { display: flex; gap: 12px; }
+    .scheme-option { flex: 1; cursor: pointer; }
+    .scheme-option input[type="radio"] { display: none; }
+    .scheme-card {
+      padding: 16px 18px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color .15s, background .15s;
+    }
+    .scheme-option:hover .scheme-card { border-color: var(--text-muted); }
+    .scheme-option input:checked + .scheme-card {
+      border-color: var(--accent);
+      background: rgba(56,189,248,.07);
+    }
+    .scheme-card-title {
+      font-weight: 600; font-size: .9rem;
+      margin-bottom: 10px; color: var(--text-primary);
+    }
+    .scheme-card-keys {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 6px 10px; align-items: center;
+      font-size: .82rem; color: var(--text-secondary);
+    }
+  </style>
 </head>
 <body>
 
@@ -99,6 +125,43 @@
       <div class="actions" style="margin-top:8px">
         <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
         <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
+      </div>
+    </div>
+
+    <!-- Keyboard shortcuts -->
+    <div class="settings-section">
+      <div class="settings-section-title">Tastenkürzel</div>
+      <div class="form-group">
+        <label class="form-label">Steuerungsschema für Lernkarten</label>
+        <div class="scheme-picker">
+
+          <label class="scheme-option">
+            <input type="radio" name="kbScheme" value="space-enter" id="schemeSpaceEnter">
+            <div class="scheme-card">
+              <div class="scheme-card-title">Leertaste &amp; Enter</div>
+              <div class="scheme-card-keys">
+                <span class="kbd">Space</span><span>Mikrofon ein/aus</span>
+                <span class="kbd">Enter</span><span>Prüfen / Weiter</span>
+                <span class="kbd">← →</span><span>Karte zurück / überspringen</span>
+                <span class="kbd">Del</span><span>Antwort leeren</span>
+              </div>
+            </div>
+          </label>
+
+          <label class="scheme-option">
+            <input type="radio" name="kbScheme" value="arrows" id="schemeArrows">
+            <div class="scheme-card">
+              <div class="scheme-card-title">Pfeiltaste ↑</div>
+              <div class="scheme-card-keys">
+                <span class="kbd">↑</span><span>Mikrofon / Prüfen / Weiter</span>
+                <span class="kbd">← →</span><span>Karte zurück / überspringen</span>
+                <span class="kbd">Del</span><span>Antwort leeren</span>
+              </div>
+            </div>
+          </label>
+
+        </div>
+        <div class="status-msg" id="schemeStatus"></div>
       </div>
     </div>
 
@@ -316,6 +379,21 @@
     SettingsService.resetSystemPrompt();
     systemPromptEl.value = DEFAULT_SYSTEM_PROMPT;
     showStatus(promptStatus, 'Standard wiederhergestellt.', 'success');
+  });
+
+  // ── Keyboard scheme ────────────────────────────────────────────────────
+  const savedScheme = SettingsService.getKeyboardScheme();
+  document.querySelector(`input[name="kbScheme"][value="${savedScheme}"]`).checked = true;
+
+  document.querySelectorAll('input[name="kbScheme"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      SettingsService.setKeyboardScheme(radio.value);
+      showStatus(document.getElementById('schemeStatus'), 'Gespeichert.', 'success');
+      setTimeout(() => {
+        const el = document.getElementById('schemeStatus');
+        el.textContent = ''; el.className = 'status-msg';
+      }, 2000);
+    });
   });
 
   // ── Init ───────────────────────────────────────────────────────────────

@@ -109,25 +109,6 @@
       </p>
     </div>
 
-    <!-- System prompt -->
-    <div class="settings-section">
-      <div class="settings-section-title">Antwortbewertung</div>
-      <div class="form-group">
-        <label class="form-label" for="systemPromptInput">System-Prompt</label>
-        <textarea class="form-input" id="systemPromptInput" rows="14"
-                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
-      </div>
-      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
-        Dieser Prompt wird bei jeder Antwortprüfung an das KI-Modell gesendet.<br>
-        „Zurücksetzen" stellt den Originaltext wieder her.
-      </p>
-      <div class="status-msg" id="promptStatus"></div>
-      <div class="actions" style="margin-top:8px">
-        <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
-        <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
-      </div>
-    </div>
-
     <!-- Keyboard shortcuts -->
     <div class="settings-section">
       <div class="settings-section-title">Tastenkürzel</div>
@@ -162,6 +143,25 @@
 
         </div>
         <div class="status-msg" id="schemeStatus"></div>
+      </div>
+    </div>
+
+    <!-- System prompt -->
+    <div class="settings-section">
+      <div class="settings-section-title">Antwortbewertung</div>
+      <div class="form-group">
+        <label class="form-label" for="systemPromptInput">System-Prompt</label>
+        <textarea class="form-input" id="systemPromptInput" rows="14"
+                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
+        Dieser Prompt wird bei jeder Antwortprüfung an das KI-Modell gesendet.<br>
+        „Zurücksetzen" stellt den Originaltext wieder her.
+      </p>
+      <div class="status-msg" id="promptStatus"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
+        <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
       </div>
     </div>
 

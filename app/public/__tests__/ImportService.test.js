@@ -1,4 +1,4 @@
-import { parseText } from '../services/ImportService.js';
+import { parseText, filterDuplicates } from '../services/ImportService.js';
 
 // ---------------------------------------------------------------------------
 // parseText — default options (Tab + Newline)
@@ -125,5 +125,48 @@ describe('parseText — filtering and whitespace', () => {
     ].join('\n');
     const result = parseText(input);
     expect(result).toHaveLength(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// filterDuplicates
+// ---------------------------------------------------------------------------
+describe('filterDuplicates', () => {
+  test('returns all cards when existingCards is empty', () => {
+    const cards = [{ question: 'Q1', answer: 'A1' }];
+    expect(filterDuplicates(cards, [])).toEqual(cards);
+  });
+
+  test('removes cards with identical question and answer', () => {
+    const existing = [{ question: 'Hund', answer: 'Dog' }];
+    const parsed   = [{ question: 'Hund', answer: 'Dog' }, { question: 'Katze', answer: 'Cat' }];
+    expect(filterDuplicates(parsed, existing)).toEqual([{ question: 'Katze', answer: 'Cat' }]);
+  });
+
+  test('comparison is case-insensitive', () => {
+    const existing = [{ question: 'hund', answer: 'dog' }];
+    const parsed   = [{ question: 'Hund', answer: 'Dog' }];
+    expect(filterDuplicates(parsed, existing)).toHaveLength(0);
+  });
+
+  test('comparison ignores leading and trailing whitespace', () => {
+    const existing = [{ question: ' Hund ', answer: ' Dog ' }];
+    const parsed   = [{ question: 'Hund', answer: 'Dog' }];
+    expect(filterDuplicates(parsed, existing)).toHaveLength(0);
+  });
+
+  test('only filters when BOTH question AND answer match', () => {
+    const existing = [{ question: 'Hund', answer: 'Dog' }];
+    const parsed   = [
+      { question: 'Hund', answer: 'Hound' },
+      { question: 'Cat',  answer: 'Dog' },
+    ];
+    expect(filterDuplicates(parsed, existing)).toHaveLength(2);
+  });
+
+  test('returns empty array when all cards are duplicates', () => {
+    const existing = [{ question: 'Hund', answer: 'Dog' }];
+    const parsed   = [{ question: 'Hund', answer: 'Dog' }];
+    expect(filterDuplicates(parsed, existing)).toHaveLength(0);
   });
 });

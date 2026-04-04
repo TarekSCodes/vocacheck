@@ -13,6 +13,7 @@
       flex-direction: column;
       gap: 20px;
       max-width: 700px;
+      margin: 0 auto;
     }
 
     /* Radio option rows */
@@ -147,6 +148,53 @@
       gap: 12px;
       flex-wrap: wrap;
     }
+
+    /* Duplicate-filter toggle */
+    .dedup-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: .88rem;
+      color: var(--text-primary);
+      user-select: none;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-flex;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-thumb {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 20px;
+      transition: background .2s;
+    }
+    .toggle-thumb::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      background: white;
+      border-radius: 50%;
+      top: 3px; left: 3px;
+      transition: transform .2s;
+    }
+    .toggle-switch input:checked + .toggle-thumb { background: var(--accent); }
+    .toggle-switch input:checked + .toggle-thumb::after { transform: translateX(16px); }
+    .dedup-hint {
+      font-size: .78rem;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 <body>
@@ -216,16 +264,9 @@
       </div>
     </div>
 
-    <!-- STEP 3: Preview -->
+    <!-- STEP 3: Target deck + duplicate filter -->
     <div class="settings-section">
-      <div class="settings-section-title">3 &mdash; Vorschau</div>
-      <div id="previewCount" class="preview-count">Noch kein Text eingefügt.</div>
-      <div id="previewTableWrap"></div>
-    </div>
-
-    <!-- STEP 4: Target deck -->
-    <div class="settings-section">
-      <div class="settings-section-title">4 &mdash; Zieldeck</div>
+      <div class="settings-section-title">3 &mdash; Zieldeck</div>
 
       <div class="deck-mode-panel">
         <div class="deck-mode-toggle">
@@ -254,6 +295,18 @@
             <input class="form-input" id="newDeckDesc" type="text" placeholder="Kurze Beschreibung">
           </div>
         </div>
+
+        <!-- Duplicate filter toggle (inside deck panel) -->
+        <div class="dedup-row">
+          <label class="toggle-label" for="skipDupes">
+            <span class="toggle-switch">
+              <input type="checkbox" id="skipDupes" checked>
+              <span class="toggle-thumb"></span>
+            </span>
+            Identische Karten überspringen
+          </label>
+          <span class="dedup-hint">Karten mit gleicher Frage und Antwort werden nicht erneut importiert</span>
+        </div>
       </div>
     </div>
 
@@ -266,12 +319,19 @@
       <div class="status-msg" id="importStatus"></div>
     </div>
 
+    <!-- PREVIEW (secondary — scroll to verify parsed result) -->
+    <div class="settings-section">
+      <div class="settings-section-title">Vorschau</div>
+      <div id="previewCount" class="preview-count">Noch kein Text eingefügt.</div>
+      <div id="previewTableWrap"></div>
+    </div>
+
   </div><!-- /.import-layout -->
 </main>
 
 <script type="module">
-  import { parseText } from './services/ImportService.js';
-  import { createCard } from './services/CardService.js';
+  import { parseText, filterDuplicates } from './services/ImportService.js';
+  import { createCard, getCards } from './services/CardService.js';
   import { getAllDecks, createDeck } from './services/DeckService.js';
 
   // ── URL param ────────────────────────────────────────────────────────────
@@ -471,12 +531,38 @@
     importBtn.disabled = true;
     importStatus.className = 'status-msg';
 
+    // ── Dedup-Filter ─────────────────────────────────────────────────────────
+    const skipDupes = document.getElementById('skipDupes').checked;
+    let cardsToImport = parsedCards;
+    let skipped = 0;
+
+    if (skipDupes) {
+      let existingCards = [];
+      try {
+        existingCards = await getCards(targetDeckId);
+      } catch {
+        // Fetch fehlgeschlagen → ohne Filter importieren (sicherer Fallback)
+      }
+      cardsToImport = filterDuplicates(parsedCards, existingCards);
+      skipped = parsedCards.length - cardsToImport.length;
+    }
+
+    // Sonderfall: alle Karten bereits vorhanden
+    if (cardsToImport.length === 0) {
+      showStatus(
+        `Alle ${parsedCards.length} Karte${parsedCards.length !== 1 ? 'n' : ''} bereits vorhanden — nichts importiert.`,
+        'success'
+      );
+      importBtn.disabled = false;
+      return;
+    }
+
     let imported = 0;
     let failed   = 0;
 
-    for (let i = 0; i < parsedCards.length; i++) {
-      const { question, answer } = parsedCards[i];
-      showStatus(`Importiere ${i + 1} / ${parsedCards.length} …`, 'success');
+    for (let i = 0; i < cardsToImport.length; i++) {
+      const { question, answer } = cardsToImport[i];
+      showStatus(`Importiere ${i + 1} / ${cardsToImport.length} …`, 'success');
       try {
         await createCard({ deckId: targetDeckId, question, answer });
         imported++;
@@ -486,14 +572,15 @@
     }
 
     if (failed === 0) {
+      let msg = `${imported} Karte${imported !== 1 ? 'n' : ''} erfolgreich importiert.`;
+      if (skipped > 0) msg += ` ${skipped} identische übersprungen.`;
+      msg += ` <a href="manage.html?deckId=${targetDeckId}" style="color:var(--accent);text-decoration:underline">Deck verwalten →</a>`;
       importStatus.className = 'status-msg success';
-      importStatus.innerHTML =
-        `${imported} Karte${imported !== 1 ? 'n' : ''} erfolgreich importiert. ` +
-        `<a href="manage.html?deckId=${targetDeckId}" style="color:var(--accent);text-decoration:underline">Deck verwalten →</a>`;
+      importStatus.innerHTML = msg;
     } else {
       showStatus(
         `${imported} Karte${imported !== 1 ? 'n' : ''} importiert, ${failed} fehlgeschlagen.`,
-        failed === parsedCards.length ? 'error' : 'success'
+        failed === cardsToImport.length ? 'error' : 'success'
       );
     }
 

@@ -1,0 +1,36 @@
+sequenceDiagram
+  actor User
+  participant Browser
+  participant Backend
+
+  User->>Browser: opens import.html
+  Browser->>+Backend: GET /api/decks
+  Backend-->>-Browser: Deck[]
+  Browser-->>User: target deck selector populated
+
+  User->>Browser: pastes text into textarea
+  User->>Browser: selects separator (tab / semicolon / custom)
+  Note over Browser: ImportService.parseText(text, separator)
+  Browser-->>User: live preview shows parsed Q&A pairs
+
+  User->>Browser: selects target deck
+  User->>Browser: toggle "Identische Karten überspringen" (default: ON)
+
+  User->>Browser: clicks "Import"
+
+  opt Skip-duplicates toggle is ON
+    Browser->>+Backend: GET /api/cards?deckId={targetDeckId}
+    Backend-->>-Browser: existingCards[]
+    Note over Browser: ImportService.filterDuplicates(parsed, existing)\ncase-insensitive · trim · both Q+A must match
+  end
+
+  alt All cards are duplicates
+    Browser-->>User: "Alle X Karten bereits vorhanden — nichts importiert."
+  else Cards to import remain
+    loop for each card to import
+      Browser->>+Backend: POST /api/cards { deckId, question, answer }
+      Backend-->>-Browser: Card (201)
+      Browser-->>User: "Importiere N / Total …"
+    end
+    Browser-->>User: "X Karten importiert. Y identische übersprungen."
+  end

@@ -1,0 +1,28 @@
+flowchart TD
+  A([User clicks Check]) --> B{Answer source?}
+  B -->|Voice input| C[Use Whisper transcription]
+  B -->|Text input| D[Use typed text]
+  C --> E[Build evaluation prompt\nquestion + model answer + user answer]
+  D --> E
+
+  E --> F[POST /api/ollama/api/chat\nwith system prompt from SettingsService]
+  F --> G{LLM response\nreceived?}
+  G -->|Timeout / network error| H[Show connection error\nto user]
+  G -->|Response received| I{Valid JSON?\ncorrect + feedback fields?}
+  I -->|No — InvalidResponseError| J[Show parsing error\nto user]
+  I -->|Yes| K{correct === true?}
+
+  K -->|true| L["LeitnerService.updateCardLevel(card, true)\nlevel = min(level+1, 5)\ncorrectStreak++"]
+  K -->|false| M["LeitnerService.updateCardLevel(card, false)\nlevel = 1\ncorrectStreak = 0"]
+
+  L --> N["PUT /api/cards/:id\n{ level, correctStreak, lastReviewed: now }"]
+  M --> N
+  N --> O[Show feedback to user\ncorrect/incorrect + explanation]
+
+  O --> P{More due cards?}
+  P -->|Yes| Q([Show next card])
+  P -->|No| R["PUT /api/decks/:id\n{ sessionCount: sessionCount+1 }"]
+  R --> S([Session complete])
+
+  H --> T([End with error])
+  J --> T

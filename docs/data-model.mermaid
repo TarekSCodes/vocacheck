@@ -1,0 +1,23 @@
+erDiagram
+  Deck {
+    string id PK "UUID v4"
+    string name "Display name"
+    string description "Optional description"
+    int sessionCount "Total completed sessions (used for Leitner scheduling)"
+    string createdAt "ISO 8601"
+    string updatedAt "ISO 8601"
+  }
+
+  Card {
+    string id PK "UUID v4"
+    string deckId FK "References Deck.id"
+    string question "Question shown to learner"
+    string answer "Reference answer for AI evaluation"
+    int level "Leitner level 1–5 (interval = 2^(level-1) sessions)"
+    int correctStreak "Consecutive correct answers"
+    string lastReviewed "ISO 8601 or null"
+    string createdAt "ISO 8601"
+    string updatedAt "ISO 8601"
+  }
+
+  Deck ||--o{ Card : "contains"

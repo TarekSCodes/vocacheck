@@ -1,0 +1,35 @@
+sequenceDiagram
+  actor User
+  participant Browser
+  participant Backend
+  participant Ollama
+
+  User->>Browser: opens http://localhost:8080
+  Browser->>+Backend: GET /api/admin/status
+  Backend->>+Ollama: GET /api/tags (5 s timeout)
+  Ollama-->>-Backend: { models: [] }
+  Backend-->>-Browser: { ollamaReachable: true, modelInstalled: false }
+
+  Note over Browser: modelInstalled === false → redirect to setup.html
+
+  Browser-->>User: Setup assistant shown
+  Browser->>+Backend: GET /api/admin/gpu-status
+  Backend->>Backend: inspect Ollama container via Docker socket
+  Backend-->>-Browser: { gpuAvailable: true/false }
+  Browser-->>User: GPU status indicator shown
+
+  User->>Browser: enters model name (e.g. llama3.2:3b), clicks "Download"
+  Browser->>+Backend: POST /api/admin/pull-model { model: "llama3.2:3b" }
+  Backend->>Ollama: POST /api/pull { model, stream: true }
+
+  loop SSE progress events
+    Ollama-->>Backend: { status, completed, total, digest }
+    Backend-->>Browser: data: { status, completed, total }
+    Browser-->>User: progress bar updates in real time
+  end
+
+  Backend-->>-Browser: data: {"status":"complete"}
+  Browser-->>User: "Download complete"
+
+  User->>Browser: clicks "Open VocaCheck"
+  Browser-->>User: navigates to index.html (deck overview)

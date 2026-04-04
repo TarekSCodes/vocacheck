@@ -1,0 +1,28 @@
+flowchart TD
+  A([Session Start\nUser clicks deck Start]) --> B["Load all cards for deck\nGET /api/cards?deckId\nGET /api/decks → sessionCount"]
+
+  B --> C["LeitnerService.getDueCards(cards, sessionCount)\nFor each card: interval = 2^(level−1)"]
+
+  C --> D{"card.level → interval\n1 → every session (÷1)\n2 → every 2nd (÷2)\n3 → every 4th (÷4)\n4 → every 8th (÷8)\n5 → every 16th (÷16)"}
+
+  D -->|"sessionCount % interval === 0"| E[Card is DUE → add to queue]
+  D -->|"sessionCount % interval ≠ 0"| F[Card skipped this session]
+
+  E --> G{Queue empty?}
+  G -->|Yes — no cards due| H([Show "no cards due" message])
+  G -->|No| I[Show card question to user]
+
+  I --> J[User answers\nvoice or text]
+  J --> K[AI evaluation\nsee act-evaluation diagram]
+  K --> L{Correct?}
+
+  L -->|Yes| M["level = min(level+1, 5)\ncorrectStreak++"]
+  L -->|No| N["level = 1\ncorrectStreak = 0"]
+
+  M --> O["PUT /api/cards/:id\n(updated level + lastReviewed)"]
+  N --> O
+
+  O --> P{More due cards\nin queue?}
+  P -->|Yes| I
+  P -->|No| Q["PUT /api/decks/:id\nsessionCount++"]
+  Q --> R([Session complete])

@@ -1,0 +1,49 @@
+sequenceDiagram
+  actor User
+  participant Browser
+  participant Backend
+  participant Whisper
+  participant Ollama
+
+  User->>Browser: clicks "Start" on a deck
+  Browser->>+Backend: GET /api/cards?deckId
+  Backend-->>-Browser: Card[]
+  Browser->>+Backend: GET /api/admin/status
+  Backend-->>-Browser: { ollamaReachable, models }
+  Note over Browser: LeitnerService.getDueCards(cards, sessionCount)
+  Browser-->>User: shows first due card (question)
+
+  alt Voice input
+    User->>Browser: clicks microphone, speaks answer
+    Browser->>+Backend: POST /api/whisper/v1/audio/transcriptions (audio blob)
+    Backend->>+Whisper: proxy — multipart/form-data
+    Whisper-->>-Backend: { text }
+    Backend-->>-Browser: { text }
+    Browser-->>User: transcription shown in answer field
+  else Text input
+    User->>Browser: types answer into field
+  end
+
+  User->>Browser: clicks "Check"
+  Note over Browser: EvaluationService.evaluate(question, modelAnswer, userAnswer)
+  Browser->>+Backend: POST /api/ollama/api/chat (prompt + system prompt)
+  Backend->>+Ollama: POST /api/chat
+  Ollama-->>-Backend: { message: { content: '{"correct":true,"feedback":"..."}' } }
+  Backend-->>-Browser: JSON response
+  Note over Browser: EvaluationService.parseResponse(raw)
+
+  alt Correct answer
+    Note over Browser: LeitnerService.updateCardLevel(card, true) → level++
+  else Wrong answer
+    Note over Browser: LeitnerService.updateCardLevel(card, false) → level=1
+  end
+
+  Browser->>Backend: PUT /api/cards/:id { level, correctStreak, lastReviewed }
+  Browser-->>User: feedback displayed (correct/incorrect + explanation)
+
+  alt More due cards remain
+    Browser-->>User: shows next card
+  else All cards done
+    Browser->>Backend: PUT /api/decks/:id { sessionCount: sessionCount+1 }
+    Browser-->>User: session complete screen
+  end

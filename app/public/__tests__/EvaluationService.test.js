@@ -1,4 +1,5 @@
 import {
+  DEFAULT_SYSTEM_PROMPT,
   buildPrompt,
   parseResponse,
   evaluate,
@@ -12,6 +13,31 @@ jest.mock('../services/SettingsService.js');
 
 afterEach(() => {
   jest.resetAllMocks();
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_SYSTEM_PROMPT
+// ---------------------------------------------------------------------------
+describe('DEFAULT_SYSTEM_PROMPT', () => {
+  test('references exam standard as the evaluation criterion', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('exam');
+  });
+
+  test('states that the question defines scope — not the model answer', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('QUESTION defines the scope');
+  });
+
+  test('explicitly allows giving more information than requested', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('MORE correct information');
+  });
+
+  test('handles speech-recognition / transcription artifacts charitably', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('transcription');
+  });
+
+  test('accepts synonyms and paraphrases as correct', () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain('Synonyms, paraphrases');
+  });
 });
 
 // ---------------------------------------------------------------------------

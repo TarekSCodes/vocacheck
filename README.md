@@ -109,6 +109,20 @@ Open **Settings** (gear icon) to configure:
 
 ---
 
+## Documentation
+
+Technical documentation is located in the [`docs/`](docs/) folder.
+
+| Document | Description |
+|----------|-------------|
+| [`docs/swagger.yaml`](docs/swagger.yaml) | OpenAPI 3.0 specification for all backend endpoints |
+| [`docs/diagrams.md`](docs/diagrams.md) | UML diagrams: architecture, data model, use cases, sequences, activity flows |
+
+The diagrams in `docs/diagrams.md` render natively on GitHub (Mermaid).  
+Raw `.mermaid` source files are stored alongside for version control.
+
+---
+
 ## Stopping VocaCheck
 
 ```bash

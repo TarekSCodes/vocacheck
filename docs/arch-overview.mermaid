@@ -1,0 +1,23 @@
+graph LR
+  subgraph Browser["Browser (Frontend)"]
+    HTML["HTML Pages\nindex / review / manage\nimport / settings / setup"]
+    Services["ES Module Services\nCardService · DeckService\nEvaluationService · ImportService\nLeitnerService · SettingsService\nOllamaService · WhisperService"]
+  end
+
+  subgraph DockerCompose["Docker Compose"]
+    Backend["Node.js Backend\n:8080\n(Express)"]
+    Ollama["Ollama\n:11434\n(LLM inference)"]
+    Whisper["Whisper\n:9000\n(Speech-to-text)"]
+  end
+
+  DataVol[("data/\ncards.json\ndecks.json")]
+  LogsVol[("logs/\napp.log")]
+  OllamaVol[("ollama/\nmodel weights")]
+
+  HTML --> Services
+  Services -->|"REST API (HTTP)"| Backend
+  Backend -->|"LLM chat · model pull"| Ollama
+  Backend -->|"Audio transcription\n(multipart/form-data)"| Whisper
+  Backend --- DataVol
+  Backend --- LogsVol
+  Ollama --- OllamaVol

@@ -1,0 +1,516 @@
+openapi: 3.0.3
+info:
+  title: VocaCheck API
+  version: 1.1.0
+  description: >
+    REST API for the VocaCheck local flashcard learning application.
+    All endpoints are served by the Node.js backend at http://localhost:8080.
+
+servers:
+  - url: http://localhost:8080
+    description: Local Docker Compose setup
+
+paths:
+
+  # ---------------------------------------------------------------------------
+  # Cards
+  # ---------------------------------------------------------------------------
+
+  /api/cards:
+    get:
+      summary: List cards for a deck
+      description: Returns all cards belonging to the specified deck, sorted by creation date.
+      parameters:
+        - name: deckId
+          in: query
+          required: true
+          description: UUID of the deck to filter by.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Array of cards (may be empty for a new deck).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+        '400':
+          description: deckId query parameter is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create a card
+      description: >
+        Creates a new card in the specified deck.
+        Leitner defaults are always enforced regardless of body input:
+        level=1, correctStreak=0, lastReviewed=null.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deckId, question, answer]
+              properties:
+                deckId:
+                  type: string
+                  format: uuid
+                question:
+                  type: string
+                  example: "What is the capital of France?"
+                answer:
+                  type: string
+                  example: "Paris"
+      responses:
+        '201':
+          description: The newly created card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '400':
+          description: A required field (deckId, question, or answer) is missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cards/{id}:
+    put:
+      summary: Update a card
+      description: >
+        Applies partial updates to an existing card (e.g. level and correctStreak after evaluation).
+        The fields id, deckId, and createdAt are immutable and ignored even if present in the body.
+        updatedAt is always set to the current timestamp.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardUpdate'
+      responses:
+        '200':
+          description: The updated card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+        '404':
+          description: No card with the given id exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a card
+      description: Removes the card with the given id. Idempotent — succeeds even if the id does not exist.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Card deleted (no content).
+
+  # ---------------------------------------------------------------------------
+  # Decks
+  # ---------------------------------------------------------------------------
+
+  /api/decks:
+    get:
+      summary: List all decks
+      description: Returns all decks. Used to populate the home screen overview.
+      responses:
+        '200':
+          description: Array of all decks (may be empty).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deck'
+
+    post:
+      summary: Create a deck
+      description: Creates a new deck. sessionCount is always initialised to 0.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: "French Vocabulary"
+                description:
+                  type: string
+                  example: "Basic French words and phrases"
+      responses:
+        '201':
+          description: The newly created deck.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deck'
+        '400':
+          description: name is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/decks/{id}:
+    put:
+      summary: Update a deck
+      description: >
+        Applies partial updates to an existing deck (e.g. name, sessionCount).
+        The fields id and createdAt are immutable and ignored even if present in the body.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeckUpdate'
+      responses:
+        '200':
+          description: The updated deck.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deck'
+        '404':
+          description: No deck with the given id exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a deck (cascade)
+      description: >
+        Removes the deck and all cards belonging to it (cascade delete).
+        Returns 404 if no deck with the given id exists.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deck and all associated cards deleted (no content).
+        '404':
+          description: No deck with the given id exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------------------------------------------------------------------------
+  # Admin
+  # ---------------------------------------------------------------------------
+
+  /api/admin/status:
+    get:
+      summary: Check Ollama reachability and installed models
+      description: >
+        Used by the frontend on startup to decide whether to show the setup assistant.
+        If Ollama is unreachable the response is still 200 but ollamaReachable is false.
+      responses:
+        '200':
+          description: Ollama connectivity and model status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ollamaReachable:
+                    type: boolean
+                    description: Whether the Ollama service responded within 5 seconds.
+                  modelInstalled:
+                    type: boolean
+                    description: Whether at least one model is installed.
+                  models:
+                    type: array
+                    items:
+                      type: string
+                    description: Names of all installed models.
+                    example: ["llama3.2:3b", "llama3.1:8b"]
+
+  /api/admin/gpu-status:
+    get:
+      summary: Check whether GPU acceleration is available
+      description: >
+        Inspects the Ollama Docker container via the Docker socket to detect
+        NVIDIA GPU device requests in the container configuration.
+      responses:
+        '200':
+          description: GPU availability status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gpuAvailable:
+                    type: boolean
+                    description: >
+                      true if the Ollama container has GPU device requests configured
+                      (NVIDIA Container Toolkit installed and enabled).
+
+  /api/admin/restart-whisper:
+    post:
+      summary: Restart the Whisper container
+      description: >
+        Restarts the Whisper Docker container via the Docker socket.
+        Call this after changing the Whisper model size in settings so the new
+        model is picked up on the next transcription request.
+      responses:
+        '200':
+          description: Container restart initiated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/admin/pull-model:
+    post:
+      summary: Pull an Ollama model (SSE stream)
+      description: >
+        Triggers an Ollama model pull and streams download progress back to the
+        client via Server-Sent Events. Each SSE event carries a JSON object from
+        the Ollama pull API (fields: status, completed, total, digest).
+        The stream ends with a synthetic `{"status":"complete"}` event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model]
+              properties:
+                model:
+                  type: string
+                  description: Model name as listed in the Ollama library.
+                  example: "llama3.2:3b"
+      responses:
+        '200':
+          description: SSE stream of pull-progress events.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"status":"pulling manifest"}
+
+                  data: {"status":"downloading","completed":123456,"total":2000000}
+
+                  data: {"status":"complete"}
+        '400':
+          description: model is required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------------------------------------------------------------------------
+  # Proxy routes (transparent pass-through)
+  # ---------------------------------------------------------------------------
+
+  /api/ollama/{path}:
+    get:
+      summary: Proxy to Ollama (all HTTP methods)
+      description: >
+        Transparent reverse proxy to the Ollama service at http://ollama:11434.
+        All HTTP methods are forwarded. The mount prefix /api/ollama is stripped
+        before forwarding, so /api/ollama/api/tags → /api/tags on Ollama.
+        Refer to the Ollama API documentation for available endpoints.
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Response from the Ollama service.
+        '502':
+          description: Upstream Ollama service is unreachable.
+
+  /api/whisper/{path}:
+    get:
+      summary: Proxy to Whisper (all HTTP methods)
+      description: >
+        Transparent reverse proxy to the Whisper service at http://whisper:9000.
+        All HTTP methods are forwarded. Multipart/form-data audio uploads are
+        streamed directly without buffering.
+        Refer to the faster-whisper-server API documentation for available endpoints.
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Response from the Whisper service.
+        '502':
+          description: Upstream Whisper service is unreachable.
+
+# ---------------------------------------------------------------------------
+# Shared schemas
+# ---------------------------------------------------------------------------
+
+components:
+  schemas:
+
+    Card:
+      type: object
+      description: A flashcard with Leitner spaced-repetition metadata.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (UUID v4).
+        deckId:
+          type: string
+          format: uuid
+          description: UUID of the owning deck.
+        question:
+          type: string
+          description: The question text shown to the learner.
+        answer:
+          type: string
+          description: The reference (model) answer used for AI evaluation.
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: >
+            Leitner level. Determines review interval:
+            1=every session, 2=every 2nd, 3=every 4th, 4=every 8th, 5=every 16th.
+        correctStreak:
+          type: integer
+          minimum: 0
+          description: Number of consecutive correct answers.
+        lastReviewed:
+          type: string
+          format: date-time
+          nullable: true
+          description: ISO 8601 timestamp of the most recent review, or null if never reviewed.
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 creation timestamp.
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the last modification.
+
+    CardUpdate:
+      type: object
+      description: >
+        Partial Card update. The fields id, deckId, and createdAt are immutable
+        and will be ignored even if included in the request body.
+      properties:
+        question:
+          type: string
+        answer:
+          type: string
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+        correctStreak:
+          type: integer
+          minimum: 0
+        lastReviewed:
+          type: string
+          format: date-time
+          nullable: true
+
+    Deck:
+      type: object
+      description: A named collection of flashcards.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (UUID v4).
+        name:
+          type: string
+          description: Display name of the deck.
+        description:
+          type: string
+          description: Optional short description.
+        sessionCount:
+          type: integer
+          minimum: 0
+          description: >
+            Total number of completed review sessions for this deck.
+            Used by LeitnerService to determine which cards are due.
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 creation timestamp.
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the last modification.
+
+    DeckUpdate:
+      type: object
+      description: >
+        Partial Deck update. The fields id and createdAt are immutable
+        and will be ignored even if included in the request body.
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        sessionCount:
+          type: integer
+          minimum: 0
+
+    ErrorResponse:
+      type: object
+      description: Standard error body returned for 4xx and 5xx responses.
+      properties:
+        error:
+          type: string
+          description: Error class name (e.g. "CardStorageError", "InternalServerError").
+        message:
+          type: string
+          description: Human-readable error description.
+        context:
+          type: object
+          description: Optional structured context data for debugging (e.g. { id, deckId }).

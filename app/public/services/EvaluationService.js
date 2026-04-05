@@ -1,6 +1,6 @@
 /**
  * @file EvaluationService.js
- * Orchestrates AI-powered answer evaluation (SPEC §2.5).
+ * Orchestrates AI-powered answer evaluation and answer summarisation (SPEC §2.5).
  * Builds the prompt, calls OllamaService, and parses the structured JSON response.
  */
 
@@ -94,6 +94,72 @@ export function parseResponse(raw) {
   }
 
   return { correct: parsed.correct, feedback: parsed.feedback };
+}
+
+/**
+ * Default system prompt for the bullet-point summarisation call.
+ * Used as fallback when no custom summary prompt is stored in SettingsService.
+ *
+ * @type {string}
+ */
+export const DEFAULT_SUMMARY_PROMPT = `You are an assistant that condenses model answers into memorable bullet points for students.
+
+Given a model answer, extract the key concepts as a JSON array of short, self-contained bullet points.
+
+Rules:
+- 3 to 6 bullet points maximum
+- Each bullet point must be a standalone fact or concept — no filler words
+- Use the same language as the model answer
+- Do NOT include the question; focus only on what makes the answer correct
+- Keep each bullet point short enough to memorize in one reading
+
+Always respond ONLY with a valid JSON array of strings. No markdown, no explanation outside JSON:
+["bullet point 1", "bullet point 2", "bullet point 3"]`;
+
+/**
+ * Parses a raw JSON string from Ollama's summarisation response into a string array.
+ *
+ * @param {string} raw - Raw text returned by Ollama (must be a JSON array of strings).
+ * @returns {string[]}
+ * @throws {InvalidResponseError} When the text is not valid JSON or not a string array.
+ */
+export function parseSummaryResponse(raw) {
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new InvalidResponseError('Summary response is not valid JSON', { raw });
+  }
+
+  if (!Array.isArray(parsed) || !parsed.every(s => typeof s === 'string')) {
+    throw new InvalidResponseError('Summary response must be a JSON array of strings', { parsed });
+  }
+
+  return parsed;
+}
+
+/**
+ * Generates a compact bullet-point summary of the model answer using the locally
+ * running Ollama LLM.
+ *
+ * This call is independent of `evaluate()` and can run in parallel with it.
+ * Callers should treat failures as non-critical and handle them with `.catch(() => null)`.
+ *
+ * @param {string} modelAnswer - The reference answer stored on the card.
+ * @returns {Promise<string[]>} Array of bullet-point strings.
+ * @throws {OllamaConnectionError}  When Ollama is unreachable.
+ * @throws {InvalidResponseError}   When Ollama's reply cannot be parsed.
+ */
+export async function summarize(modelAnswer) {
+  const model = SettingsService.getOllamaModel();
+  LoggerService.debug('EvaluationService', `summarize — model: ${model}`);
+
+  const systemPrompt = SettingsService.getSummaryPrompt() ?? DEFAULT_SUMMARY_PROMPT;
+  const raw = await generate(`Model answer: ${modelAnswer}`, systemPrompt, model);
+
+  const bullets = parseSummaryResponse(raw);
+  LoggerService.debug('EvaluationService', `summarize — ${bullets.length} bullets`);
+  return bullets;
 }
 
 /**

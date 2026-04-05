@@ -9,6 +9,7 @@ const KEYS = {
   OLLAMA_MODEL:     'vocacheck_ollama_model',
   WHISPER_MODEL:    'vocacheck_whisper_model',
   SYSTEM_PROMPT:    'vocacheck_system_prompt',
+  SUMMARY_PROMPT:   'vocacheck_summary_prompt',
   KEYBOARD_SCHEME:  'vocacheck_keyboard_scheme',
 };
 
@@ -84,6 +85,32 @@ export const SettingsService = {
    */
   resetSystemPrompt() {
     localStorage.removeItem(KEYS.SYSTEM_PROMPT);
+  },
+
+  /**
+   * Returns the custom summary prompt stored by the user, or `null` if none is set.
+   * Callers should fall back to `DEFAULT_SUMMARY_PROMPT` from EvaluationService.
+   *
+   * @returns {string|null}
+   */
+  getSummaryPrompt() {
+    return localStorage.getItem(KEYS.SUMMARY_PROMPT);
+  },
+
+  /**
+   * Persists a custom summary prompt.
+   *
+   * @param {string} prompt
+   */
+  setSummaryPrompt(prompt) {
+    localStorage.setItem(KEYS.SUMMARY_PROMPT, prompt);
+  },
+
+  /**
+   * Removes the custom summary prompt so EvaluationService falls back to the default.
+   */
+  resetSummaryPrompt() {
+    localStorage.removeItem(KEYS.SUMMARY_PROMPT);
   },
 
   /**

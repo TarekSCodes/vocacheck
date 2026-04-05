@@ -1,0 +1,25 @@
+sequenceDiagram
+  actor User
+  participant Browser
+  participant Backend
+  participant Docker
+
+  User->>Browser: opens Settings page
+  Note over Browser: SettingsService.getWhisperModel() reads localStorage
+  Browser-->>User: current model size shown (e.g. "small")
+
+  User->>Browser: selects new Whisper model size (e.g. "medium")
+  Note over Browser: SettingsService.setWhisperModel("medium")\nstored in localStorage under vocacheck_whisper_model
+
+  User->>Browser: clicks "Save & Restart"
+  Browser->>+Backend: POST /api/admin/restart-whisper
+  Backend->>Backend: findContainerByService("whisper") via Docker socket
+  Backend->>+Docker: GET /containers/json?filters=... (find whisper container)
+  Docker-->>-Backend: container object { Id, ... }
+  Backend->>+Docker: POST /containers/{Id}/restart
+  Docker-->>-Backend: 204
+  Backend-->>-Browser: { success: true }
+  Browser-->>User: "Whisper wird neu gestartet…"
+
+  Note over Docker: Whisper container restarts with WHISPER_MODEL env var\nset in docker-compose.yml (reflects chosen model size)
+  Note over Browser: Next transcription request will use the new model

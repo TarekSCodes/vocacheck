@@ -1,0 +1,26 @@
+flowchart TD
+  A([Error thrown in route handler]) --> B["Route calls next(err)\nor throws synchronously"]
+  B --> C[Global error-handling middleware\napp.use on err, req, res, next]
+
+  C --> D{err instanceof\nVocaCheckError?}
+
+  D -->|Yes| E{Which subclass?}
+  E -->|CardStorageError| F["HTTP 500\n{ error: 'CardStorageError', message, context }"]
+  E -->|DeckStorageError| F
+  E -->|OllamaConnectionError| F
+  E -->|OllamaModelNotFoundError| F
+  E -->|InvalidResponseError| F
+  E -->|GpuNotAvailableError| F
+  E -->|AdminCommandError| F
+  E -->|WhisperConnectionError| F
+
+  D -->|No — unknown error| G["HTTP 500\n{ error: 'InternalServerError',\nmessage: 'An unexpected error occurred' }"]
+
+  F --> H["Winston logger.error\nwith err.name, err.message, err.context"]
+  G --> I["Winston logger.error\n'Unexpected error'"]
+
+  H --> J([JSON response sent to client])
+  I --> J
+
+  style F fill:#fde,stroke:#c99
+  style G fill:#fde,stroke:#c99

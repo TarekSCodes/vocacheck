@@ -49,6 +49,10 @@
       <div class="answer-block" id="answerBlock" style="display:none">
         <p class="answer-text" id="answerText"></p>
       </div>
+      <div class="summary-block" id="summaryBlock" style="display:none">
+        <p class="summary-label">Auf einen Blick</p>
+        <ul class="summary-list" id="summaryList"></ul>
+      </div>
     </div>
   </div>
 
@@ -126,7 +130,7 @@
   import { getCards, updateCard } from './services/CardService.js';
   import { getAllDecks, updateDeck } from './services/DeckService.js';
   import { getDueCards, updateCardLevel, getSessionStats } from './services/LeitnerService.js';
-  import { evaluate } from './services/EvaluationService.js';
+  import { evaluate, summarize } from './services/EvaluationService.js';
   import { startRecording, stopRecording, transcribe } from './services/WhisperService.js';
   import { SettingsService } from './services/SettingsService.js';
 
@@ -166,8 +170,10 @@
   const navCurrentEl = document.getElementById('navCurrent');
   const navTotalEl   = document.getElementById('navTotal');
   const levelBadge   = document.getElementById('levelBadge');
-  const progressFill = document.getElementById('progressFill');
-  const progressText = document.getElementById('progressText');
+  const progressFill   = document.getElementById('progressFill');
+  const progressText   = document.getElementById('progressText');
+  const summaryBlockEl = document.getElementById('summaryBlock');
+  const summaryListEl  = document.getElementById('summaryList');
 
   // ── Load data ──────────────────────────────────────────────────────────
   async function init() {
@@ -198,7 +204,9 @@
     const card = dueCards[currentIndex];
     questionEl.textContent = card.question;
     answerEl.textContent   = card.answer;
-    answerBlockEl.style.display = 'none';
+    answerBlockEl.style.display  = 'none';
+    summaryBlockEl.style.display = 'none';
+    summaryListEl.innerHTML      = '';
     evalBox.style.display  = 'none';
     evalBox.innerHTML      = '';
     userAnswerEl.value     = '';
@@ -294,8 +302,12 @@
     statusBadge.style.color = 'var(--accent)';
 
     let result;
+    let bullets;
     try {
-      result = await evaluate(card.question, card.answer, userAns);
+      [result, bullets] = await Promise.all([
+        evaluate(card.question, card.answer, userAns),
+        summarize(card.answer).catch(() => null),
+      ]);
     } catch (err) {
       evaluating = false;
       evalBox.innerHTML = `<div class="eval-result wrong"><div class="eval-icon">!</div><span>Fehler: ${escHtml(err.message)}</span></div>`;
@@ -318,6 +330,12 @@
 
     // Reveal answer
     answerBlockEl.style.display = 'block';
+
+    // Reveal bullet-point summary (if successfully generated)
+    if (bullets && bullets.length > 0) {
+      summaryListEl.innerHTML = bullets.map(b => `<li>${escHtml(b)}</li>`).join('');
+      summaryBlockEl.style.display = 'block';
+    }
 
     // Update status badge
     statusBadge.textContent = result.correct ? '✓ Richtig' : '✗ Falsch';

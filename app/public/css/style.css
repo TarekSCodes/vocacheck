@@ -195,6 +195,7 @@ main.split {
   line-height: 1.7;
   color: var(--text-secondary);
   font-style: italic;
+  white-space: pre-wrap;
 }
 
 /* ─── INPUT AREA ─── */
@@ -442,8 +443,9 @@ footer {
 /* ─── INDEX — DECK GRID ─── */
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 360px));
   gap: 20px;
+  justify-content: center;
 }
 
 .deck-card {
@@ -603,6 +605,7 @@ footer {
 .settings-layout {
   display: flex; flex-direction: column; gap: 20px;
   max-width: 600px;
+  margin: 0 auto;
 }
 
 /* gpu status chip */
@@ -745,6 +748,34 @@ a.nav-link:hover { color: var(--accent); }
   font-size: .9rem;
 }
 .empty-state p { margin-top: 8px; }
+
+/* ─── SUMMARY BLOCK (bullet points under model answer) ─── */
+.summary-block {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 14px;
+  animation: fadeSlide .35s ease;
+}
+.summary-label {
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.summary-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.summary-list li {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
 
 /* ─── SUMMARY SCREEN (review complete) ─── */
 .summary-card {

@@ -109,25 +109,6 @@
       </p>
     </div>
 
-    <!-- System prompt -->
-    <div class="settings-section">
-      <div class="settings-section-title">Antwortbewertung</div>
-      <div class="form-group">
-        <label class="form-label" for="systemPromptInput">System-Prompt</label>
-        <textarea class="form-input" id="systemPromptInput" rows="14"
-                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
-      </div>
-      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
-        Dieser Prompt wird bei jeder Antwortprüfung an das KI-Modell gesendet.<br>
-        „Zurücksetzen" stellt den Originaltext wieder her.
-      </p>
-      <div class="status-msg" id="promptStatus"></div>
-      <div class="actions" style="margin-top:8px">
-        <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
-        <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
-      </div>
-    </div>
-
     <!-- Keyboard shortcuts -->
     <div class="settings-section">
       <div class="settings-section-title">Tastenkürzel</div>
@@ -165,6 +146,44 @@
       </div>
     </div>
 
+    <!-- System prompt -->
+    <div class="settings-section">
+      <div class="settings-section-title">Antwortbewertung</div>
+      <div class="form-group">
+        <label class="form-label" for="systemPromptInput">System-Prompt</label>
+        <textarea class="form-input" id="systemPromptInput" rows="14"
+                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
+        Dieser Prompt wird bei jeder Antwortprüfung an das KI-Modell gesendet.<br>
+        „Zurücksetzen" stellt den Originaltext wieder her.
+      </p>
+      <div class="status-msg" id="promptStatus"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-primary" id="savePromptBtn">Speichern</button>
+        <button class="btn btn-ghost"   id="resetPromptBtn">Zurücksetzen</button>
+      </div>
+    </div>
+
+    <!-- Summary prompt -->
+    <div class="settings-section">
+      <div class="settings-section-title">Stichpunkt-Zusammenfassung</div>
+      <div class="form-group">
+        <label class="form-label" for="summaryPromptInput">System-Prompt</label>
+        <textarea class="form-input" id="summaryPromptInput" rows="14"
+                  style="font-family:monospace;font-size:.8rem;resize:vertical;line-height:1.5"></textarea>
+      </div>
+      <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5">
+        Dieser Prompt steuert, wie die Stichpunkte unter der Musterantwort generiert werden.<br>
+        „Zurücksetzen" stellt den Originaltext wieder her.
+      </p>
+      <div class="status-msg" id="summaryPromptStatus"></div>
+      <div class="actions" style="margin-top:8px">
+        <button class="btn btn-primary" id="saveSummaryPromptBtn">Speichern</button>
+        <button class="btn btn-ghost"   id="resetSummaryPromptBtn">Zurücksetzen</button>
+      </div>
+    </div>
+
     <!-- System info -->
     <div class="settings-section">
       <div class="settings-section-title">System</div>
@@ -180,7 +199,7 @@
 <script type="module">
   import { SettingsService } from './services/SettingsService.js';
   import { getStatus, getGpuStatus, restartWhisper, pullModel } from './services/AdminService.js';
-  import { DEFAULT_SYSTEM_PROMPT } from './services/EvaluationService.js';
+  import { DEFAULT_SYSTEM_PROMPT, DEFAULT_SUMMARY_PROMPT } from './services/EvaluationService.js';
 
   // ── DOM refs ───────────────────────────────────────────────────────────
   const ollamaSelect   = document.getElementById('ollamaModel');
@@ -379,6 +398,28 @@
     SettingsService.resetSystemPrompt();
     systemPromptEl.value = DEFAULT_SYSTEM_PROMPT;
     showStatus(promptStatus, 'Standard wiederhergestellt.', 'success');
+  });
+
+  // ── Summary prompt ─────────────────────────────────────────────────────
+  const summaryPromptEl     = document.getElementById('summaryPromptInput');
+  const summaryPromptStatus = document.getElementById('summaryPromptStatus');
+
+  summaryPromptEl.value = SettingsService.getSummaryPrompt() ?? DEFAULT_SUMMARY_PROMPT;
+
+  document.getElementById('saveSummaryPromptBtn').addEventListener('click', () => {
+    const val = summaryPromptEl.value.trim();
+    if (!val) {
+      showStatus(summaryPromptStatus, 'Prompt darf nicht leer sein.', 'error');
+      return;
+    }
+    SettingsService.setSummaryPrompt(val);
+    showStatus(summaryPromptStatus, 'Gespeichert.', 'success');
+  });
+
+  document.getElementById('resetSummaryPromptBtn').addEventListener('click', () => {
+    SettingsService.resetSummaryPrompt();
+    summaryPromptEl.value = DEFAULT_SUMMARY_PROMPT;
+    showStatus(summaryPromptStatus, 'Standard wiederhergestellt.', 'success');
   });
 
   // ── Keyboard scheme ────────────────────────────────────────────────────

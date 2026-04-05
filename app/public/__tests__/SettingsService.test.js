@@ -131,6 +131,41 @@ describe('setAll', () => {
 });
 
 // ---------------------------------------------------------------------------
+// getSummaryPrompt
+// ---------------------------------------------------------------------------
+describe('getSummaryPrompt', () => {
+  test('returns null by default when nothing is stored', () => {
+    expect(SettingsService.getSummaryPrompt()).toBeNull();
+  });
+
+  test('returns stored value after setSummaryPrompt()', () => {
+    SettingsService.setSummaryPrompt('My summary prompt');
+    expect(SettingsService.getSummaryPrompt()).toBe('My summary prompt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setSummaryPrompt
+// ---------------------------------------------------------------------------
+describe('setSummaryPrompt', () => {
+  test('persists prompt to localStorage under vocacheck_summary_prompt', () => {
+    SettingsService.setSummaryPrompt('Test summary prompt');
+    expect(localStorage.getItem('vocacheck_summary_prompt')).toBe('Test summary prompt');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// resetSummaryPrompt
+// ---------------------------------------------------------------------------
+describe('resetSummaryPrompt', () => {
+  test('removes the key so getSummaryPrompt() returns null afterwards', () => {
+    SettingsService.setSummaryPrompt('Something');
+    SettingsService.resetSummaryPrompt();
+    expect(SettingsService.getSummaryPrompt()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // getKeyboardScheme
 // ---------------------------------------------------------------------------
 describe('getKeyboardScheme', () => {

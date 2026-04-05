@@ -61,7 +61,28 @@ export function parseText(rawText, { termDefSeparator = '\t', lineSeparator = '\
 }
 
 /**
+ * Removes cards from parsedCards that are already present in existingCards.
+ * Comparison is case-insensitive and ignores leading/trailing whitespace.
+ * A card is considered a duplicate only when BOTH question AND answer match.
+ *
+ * @param {Array<{question: string, answer: string}>} parsedCards
+ * @param {Array<{question: string, answer: string}>} existingCards
+ * @returns {Array<{question: string, answer: string}>}
+ */
+export function filterDuplicates(parsedCards, existingCards) {
+  if (!existingCards.length) return parsedCards;
+  const seen = new Set(
+    existingCards.map(c =>
+      `${c.question.trim().toLowerCase()}\x00${c.answer.trim().toLowerCase()}`
+    )
+  );
+  return parsedCards.filter(c =>
+    !seen.has(`${c.question.trim().toLowerCase()}\x00${c.answer.trim().toLowerCase()}`)
+  );
+}
+
+/**
  * Convenience object export so callers can do:
  * `import { ImportService } from './ImportService.js'`
  */
-export const ImportService = { parseText };
+export const ImportService = { parseText, filterDuplicates };

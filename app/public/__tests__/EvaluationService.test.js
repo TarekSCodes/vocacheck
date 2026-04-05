@@ -1,8 +1,11 @@
 import {
   DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_SUMMARY_PROMPT,
   buildPrompt,
   parseResponse,
+  parseSummaryResponse,
   evaluate,
+  summarize,
 } from '../services/EvaluationService.js';
 import { generate } from '../services/OllamaService.js';
 import { SettingsService } from '../services/SettingsService.js';
@@ -129,5 +132,84 @@ describe('evaluate', () => {
     generate.mockRejectedValue(new OllamaConnectionError('Ollama down'));
 
     await expect(evaluate('Q', 'MA', 'UA')).rejects.toThrow(OllamaConnectionError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DEFAULT_SUMMARY_PROMPT
+// ---------------------------------------------------------------------------
+describe('DEFAULT_SUMMARY_PROMPT', () => {
+  test('requires bullet-point format in the prompt', () => {
+    expect(DEFAULT_SUMMARY_PROMPT).toContain('bullet');
+  });
+
+  test('requires a JSON array as output format', () => {
+    expect(DEFAULT_SUMMARY_PROMPT).toContain('JSON array');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseSummaryResponse
+// ---------------------------------------------------------------------------
+describe('parseSummaryResponse', () => {
+  test('valid JSON array of strings is parsed correctly', () => {
+    const result = parseSummaryResponse('["point one","point two","point three"]');
+    expect(result).toEqual(['point one', 'point two', 'point three']);
+  });
+
+  test('invalid JSON string throws InvalidResponseError', () => {
+    expect(() => parseSummaryResponse('not json')).toThrow(InvalidResponseError);
+  });
+
+  test('JSON object (not an array) throws InvalidResponseError', () => {
+    expect(() => parseSummaryResponse('{"key":"value"}')).toThrow(InvalidResponseError);
+  });
+
+  test('array containing non-strings throws InvalidResponseError', () => {
+    expect(() => parseSummaryResponse('[1, 2, 3]')).toThrow(InvalidResponseError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// summarize
+// ---------------------------------------------------------------------------
+describe('summarize', () => {
+  test('calls generate() with modelAnswer and summary system prompt', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockResolvedValue('["point one","point two"]');
+
+    await summarize('The model answer text');
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    const [userPrompt, systemPrompt, model] = generate.mock.calls[0];
+    expect(userPrompt).toContain('The model answer text');
+    expect(systemPrompt).toContain('bullet');
+    expect(model).toBe('llama3.1:8b');
+  });
+
+  test('returns a string array on successful response', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockResolvedValue('["fact A","fact B","fact C"]');
+
+    const result = await summarize('Some answer');
+    expect(result).toEqual(['fact A', 'fact B', 'fact C']);
+  });
+
+  test('uses custom summary prompt from SettingsService when one is stored', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    SettingsService.getSummaryPrompt.mockReturnValue('Custom summary prompt');
+    generate.mockResolvedValue('["point"]');
+
+    await summarize('Some answer');
+
+    const [, systemPrompt] = generate.mock.calls[0];
+    expect(systemPrompt).toBe('Custom summary prompt');
+  });
+
+  test('throws OllamaConnectionError when generate() rejects', async () => {
+    SettingsService.getOllamaModel.mockReturnValue('llama3.1:8b');
+    generate.mockRejectedValue(new OllamaConnectionError('Ollama down'));
+
+    await expect(summarize('Some answer')).rejects.toThrow(OllamaConnectionError);
   });
 });

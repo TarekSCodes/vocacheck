@@ -7,3 +7,6 @@ CLAUDE_CODE_PROMPTS.md
 flashcard_mockup.html
 SPEC.md
 VocaCheck_Projektspezifikation_v5.docx
+
+#Docker .gitignore
+.env

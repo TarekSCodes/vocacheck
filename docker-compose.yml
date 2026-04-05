@@ -3,23 +3,24 @@ services:
   app:
     build: ./app
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:8080"
     volumes:
       - ./data:/app/data                           # cards.json, decks.json
       - ./logs:/app/logs                           # app.log
       - /var/run/docker.sock:/var/run/docker.sock  # container management
     environment:
-      - OLLAMA_URL=http://ollama:11434
-      - WHISPER_URL=http://whisper:9000
-      - NODE_ENV=production
+      - OLLAMA_URL=${OLLAMA_URL:-http://ollama:11434}
+      - WHISPER_URL=${WHISPER_URL:-http://whisper:9000}
+      - NODE_ENV=${NODE_ENV:-production}
     depends_on:
       - ollama
       - whisper
+    restart: ${RESTART:-unless-stopped}   
 
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama_models:/root/.ollama
     deploy:
@@ -27,16 +28,18 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]   # Nvidia GPU -- auto-detected
+    restart: ${RESTART:-unless-stopped}
 
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest
     ports:
-      - "9000:9000"
+      - "${WHISPER_PORT:-9000}:9000"
     environment:
-      - ASR_MODEL=small
-      - ASR_ENGINE=faster_whisper
+      - ASR_MODEL=${ASR_MODEL:-small}
+      - ASR_ENGINE=${ASR_ENGINE:-faster_whisper}
     volumes:
       - whisper_models:/root/.cache/whisper
+    restart: ${RESTART:-unless-stopped}
 
 volumes:
   ollama_models:

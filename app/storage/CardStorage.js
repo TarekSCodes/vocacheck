@@ -12,6 +12,7 @@ const CardStorageError = require('../errors/CardStorageError');
  * @property {number} level         - Leitner level (1–5).
  * @property {number} correctStreak - Number of consecutive correct answers.
  * @property {string|null} lastReviewed - ISO timestamp of last review, or null.
+ * @property {string[]|null} [summary] - Cached AI-generated bullet-point summary, or null if not yet generated.
  * @property {string} createdAt     - ISO timestamp of creation.
  * @property {string} updatedAt     - ISO timestamp of last update.
  */
@@ -111,6 +112,7 @@ class CardStorage {
         level: 1,
         correctStreak: 0,
         lastReviewed: null,
+        lastReviewedSession: null,
         createdAt: now,
         updatedAt: now,
       };

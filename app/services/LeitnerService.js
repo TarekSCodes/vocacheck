@@ -21,14 +21,18 @@
  * Level 4 → every 8th session (interval 8)
  * Level 5 → every 16th session (interval 16)
  *
+ * A card is due when `sessionCount - card.lastReviewedSession >= interval`.
+ * Cards that have never been reviewed (lastReviewedSession == null) are always due.
+ *
  * @param {Card[]} allDeckCards - All cards of the active deck.
  * @param {number} sessionCount - Total completed sessions for this deck.
  * @returns {Card[]} Cards due for review.
  */
 function getDueCards(allDeckCards, sessionCount) {
   return allDeckCards.filter((card) => {
+    if (card.lastReviewedSession == null) return true;
     const interval = Math.pow(2, card.level - 1); // 1, 2, 4, 8, 16
-    return sessionCount % interval === 0;
+    return (sessionCount - card.lastReviewedSession) >= interval;
   });
 }
 
@@ -38,22 +42,25 @@ function getDueCards(allDeckCards, sessionCount) {
  * the correctStreak. A wrong answer resets the card to level 1 and clears the streak.
  * Does NOT mutate the input card — returns a new object.
  *
- * @param {Card} card       - The card to update.
- * @param {boolean} correct - Whether the answer was evaluated as correct.
+ * @param {Card} card           - The card to update.
+ * @param {boolean} correct     - Whether the answer was evaluated as correct.
+ * @param {number} sessionCount - Current session number (stored as lastReviewedSession).
  * @returns {Card} Updated card object (does not mutate the input).
  */
-function updateCardLevel(card, correct) {
+function updateCardLevel(card, correct, sessionCount) {
   if (correct) {
     return {
       ...card,
       level: Math.min(5, card.level + 1),
       correctStreak: card.correctStreak + 1,
+      lastReviewedSession: sessionCount,
     };
   }
   return {
     ...card,
     level: 1,
     correctStreak: 0,
+    lastReviewedSession: sessionCount,
   };
 }
 

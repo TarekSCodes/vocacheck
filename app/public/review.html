@@ -50,7 +50,27 @@
         <p class="answer-text" id="answerText"></p>
       </div>
       <div class="summary-block" id="summaryBlock" style="display:none">
-        <p class="summary-label">Auf einen Blick</p>
+        <div class="summary-header">
+          <p class="summary-label">Auf einen Blick</p>
+          <div class="summary-actions">
+            <button class="btn-icon" id="regenerateBtn" title="Neu generieren">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </button>
+            <button class="btn-icon btn-confirm" id="confirmSummaryBtn" title="Übernehmen" style="display:none">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+            <button class="btn-icon btn-reject" id="rejectSummaryBtn" title="Verwerfen" style="display:none">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
         <ul class="summary-list" id="summaryList"></ul>
       </div>
     </div>
@@ -148,6 +168,9 @@
   let evaluating = false;
   let transcribing = false;
   let checkBtnNextAction = false;
+  let currentBullets = null;   // bullets shown for the current card (cached or freshly generated)
+  let pendingBullets = null;   // newly generated bullets awaiting confirm/reject
+  let regenerating   = false;  // guard against concurrent regenerate clicks
 
   // ── DOM refs ───────────────────────────────────────────────────────────
   const deckNameEl   = document.getElementById('deckName');
@@ -172,8 +195,11 @@
   const levelBadge   = document.getElementById('levelBadge');
   const progressFill   = document.getElementById('progressFill');
   const progressText   = document.getElementById('progressText');
-  const summaryBlockEl = document.getElementById('summaryBlock');
-  const summaryListEl  = document.getElementById('summaryList');
+  const summaryBlockEl     = document.getElementById('summaryBlock');
+  const summaryListEl      = document.getElementById('summaryList');
+  const regenerateBtn      = document.getElementById('regenerateBtn');
+  const confirmSummaryBtn  = document.getElementById('confirmSummaryBtn');
+  const rejectSummaryBtn   = document.getElementById('rejectSummaryBtn');
 
   // ── Load data ──────────────────────────────────────────────────────────
   async function init() {
@@ -207,6 +233,13 @@
     answerBlockEl.style.display  = 'none';
     summaryBlockEl.style.display = 'none';
     summaryListEl.innerHTML      = '';
+    currentBullets = null;
+    pendingBullets = null;
+    regenerating   = false;
+    regenerateBtn.style.display     = '';
+    confirmSummaryBtn.style.display = 'none';
+    rejectSummaryBtn.style.display  = 'none';
+    regenerateBtn.disabled          = false;
     evalBox.style.display  = 'none';
     evalBox.innerHTML      = '';
     userAnswerEl.value     = '';
@@ -304,10 +337,20 @@
     let result;
     let bullets;
     try {
-      [result, bullets] = await Promise.all([
-        evaluate(card.question, card.answer, userAns),
-        summarize(card.answer).catch(() => null),
-      ]);
+      if (card.summary && card.summary.length > 0) {
+        // Use cached summary — skip LLM call for bullets
+        [result] = await Promise.all([evaluate(card.question, card.answer, userAns)]);
+        bullets = card.summary;
+      } else {
+        // No cached summary — generate in parallel
+        [result, bullets] = await Promise.all([
+          evaluate(card.question, card.answer, userAns),
+          summarize(card.answer).catch(() => null),
+        ]);
+        if (bullets && bullets.length > 0) {
+          card.summary = bullets;  // update local copy for the rest of this session
+        }
+      }
     } catch (err) {
       evaluating = false;
       evalBox.innerHTML = `<div class="eval-result wrong"><div class="eval-icon">!</div><span>Fehler: ${escHtml(err.message)}</span></div>`;
@@ -333,6 +376,7 @@
 
     // Reveal bullet-point summary (if successfully generated)
     if (bullets && bullets.length > 0) {
+      currentBullets = bullets;
       summaryListEl.innerHTML = bullets.map(b => `<li>${escHtml(b)}</li>`).join('');
       summaryBlockEl.style.display = 'block';
     }
@@ -341,10 +385,13 @@
     statusBadge.textContent = result.correct ? '✓ Richtig' : '✗ Falsch';
     statusBadge.style.color = result.correct ? 'var(--green)' : 'var(--red)';
 
-    // Persist level update
-    const updatedCard = updateCardLevel(card, result.correct);
-    updateCard(card.id, { level: updatedCard.level, correctStreak: updatedCard.correctStreak })
-      .catch(() => {});
+    // Persist level + summary in one call to avoid read-write race on cards.json
+    const updatedCard = updateCardLevel(card, result.correct, deck.sessionCount ?? 0);
+    const persistUpdates = { level: updatedCard.level, correctStreak: updatedCard.correctStreak, lastReviewedSession: updatedCard.lastReviewedSession };
+    if (bullets && bullets.length > 0) {
+      persistUpdates.summary = bullets;  // always include — idempotent for cached, persists for fresh
+    }
+    updateCard(card.id, persistUpdates).catch(() => {});
 
     // Update level badge
     levelBadge.textContent = `Level ${updatedCard.level}`;
@@ -488,6 +535,55 @@
         checkBtn.click();                                      // Prüfen oder Nächste Karte
       }
     }
+  });
+
+  // ── Summary: Neu generieren / Bestätigen / Verwerfen ──────────────────
+  regenerateBtn.addEventListener('click', async () => {
+    if (regenerating) return;
+    regenerating = true;
+    regenerateBtn.disabled = true;
+    summaryListEl.innerHTML = '<li class="summary-generating">Generiere …</li>';
+
+    try {
+      const card = dueCards[currentIndex];
+      pendingBullets = await summarize(card.answer);
+      summaryListEl.innerHTML = pendingBullets.map(b => `<li>${escHtml(b)}</li>`).join('');
+      regenerateBtn.style.display     = 'none';
+      confirmSummaryBtn.style.display = '';
+      rejectSummaryBtn.style.display  = '';
+    } catch {
+      // Restore previous bullets on failure
+      summaryListEl.innerHTML = currentBullets
+        ? currentBullets.map(b => `<li>${escHtml(b)}</li>`).join('')
+        : '';
+      regenerateBtn.disabled = false;
+    } finally {
+      regenerating = false;
+    }
+  });
+
+  confirmSummaryBtn.addEventListener('click', () => {
+    const card = dueCards[currentIndex];
+    currentBullets = pendingBullets;
+    pendingBullets = null;
+    card.summary   = currentBullets;
+    updateCard(card.id, { summary: currentBullets }).catch(() => {});
+
+    confirmSummaryBtn.style.display = 'none';
+    rejectSummaryBtn.style.display  = 'none';
+    regenerateBtn.style.display     = '';
+    regenerateBtn.disabled          = false;
+  });
+
+  rejectSummaryBtn.addEventListener('click', () => {
+    pendingBullets = null;
+    summaryListEl.innerHTML = currentBullets
+      ? currentBullets.map(b => `<li>${escHtml(b)}</li>`).join('')
+      : '';
+    confirmSummaryBtn.style.display = 'none';
+    rejectSummaryBtn.style.display  = 'none';
+    regenerateBtn.style.display     = '';
+    regenerateBtn.disabled          = false;
   });
 
   // ── Helpers ───────────────────────────────────────────────────────────

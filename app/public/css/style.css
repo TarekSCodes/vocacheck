@@ -777,6 +777,48 @@ a.nav-link:hover { color: var(--accent); }
   line-height: 1.5;
 }
 
+/* ─── SUMMARY HEADER (label + action buttons row) ─── */
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.summary-header .summary-label {
+  margin-bottom: 0;
+}
+.summary-actions {
+  display: flex;
+  gap: 4px;
+}
+.btn-icon {
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.btn-icon:hover {
+  background: var(--border);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+.btn-icon.btn-confirm:hover { color: var(--green); }
+.btn-icon.btn-reject:hover  { color: var(--red);   }
+.btn-icon:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.summary-generating {
+  color: var(--text-muted);
+  font-style: italic;
+  list-style: none;
+  margin-left: -18px;
+}
+
 /* ─── SUMMARY SCREEN (review complete) ─── */
 .summary-card {
   background: var(--bg-surface);

@@ -24,10 +24,14 @@ Evaluation rules:
 - The user does NOT need to reproduce the exact wording of the model answer.
 - Synonyms, paraphrases, and equivalent phrasings are acceptable.
 - Minor grammatical errors or incomplete sentences do not make an answer wrong.
-- The answer was produced by automatic speech recognition (transcription) and may contain
+- The answer was produced by automatic speech recognition (transcription) and WILL contain
   phonetically similar but misspelled words (e.g. "Zäudonym" instead of "Pseudonym").
-  Treat such transcription artifacts charitably: if the intended word is clear from context,
-  evaluate based on the intended meaning — never penalise for speech-to-text errors.
+  CRITICAL RULE: The moment you can identify what word or concept the user intended —
+  even if only phonetically — you MUST evaluate based on that intended meaning.
+  Recognising the intended term in your feedback while still marking the answer wrong
+  is a direct contradiction and strictly forbidden. Spelling errors from transcription
+  are never a valid reason to mark an answer wrong. Only penalise if the underlying
+  concept itself is incorrect.
 - The order of listed items does NOT matter UNLESS the question explicitly requires a specific order.
 - The QUESTION defines the scope and requirements — not the model answer.
   The model answer is a reference for what counts as correct content, not a checklist to reproduce.
@@ -48,7 +52,12 @@ An answer is WRONG if it:
   (e.g. "it has something to do with security or something like that")
 - Relies heavily on filler phrases ("I think", "something like", "or something", "somehow")
   instead of stating clear, factual content
+- Substitutes a key technical term with a different concept that merely sounds related
+  (e.g. saying "IT service management" when the correct concept is "information security
+  management" — surface-level proximity is not conceptual correctness)
 - Misses critical concepts or key distinctions present in the model answer
+- When the question asks about two or more distinct items, addresses them only
+  as one undifferentiated block without identifying what is specific to each
 - Contains factually incorrect statements
 
 Apply the same standard a teacher would use when grading an exam: the answer must show
@@ -71,6 +80,17 @@ export function buildPrompt(question, modelAnswer, userAnswer) {
 }
 
 /**
+ * Strips markdown code fences (```json ... ``` or ``` ... ```) from a raw LLM response.
+ * LLMs sometimes wrap JSON in code fences despite being instructed not to.
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+function stripCodeFences(raw) {
+  return raw.replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/m, '$1').trim();
+}
+
+/**
  * Parses a raw JSON string from Ollama's response into a structured evaluation result.
  *
  * @param {string} raw - Raw text returned by Ollama (must be a JSON object).
@@ -81,7 +101,7 @@ export function buildPrompt(question, modelAnswer, userAnswer) {
 export function parseResponse(raw) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(stripCodeFences(raw));
   } catch {
     throw new InvalidResponseError('AI response is not valid JSON', { raw });
   }
@@ -126,7 +146,7 @@ Always respond ONLY with a valid JSON array of strings. No markdown, no explanat
 export function parseSummaryResponse(raw) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(stripCodeFences(raw));
   } catch {
     throw new InvalidResponseError('Summary response is not valid JSON', { raw });
   }

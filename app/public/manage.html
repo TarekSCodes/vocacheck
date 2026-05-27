@@ -21,6 +21,10 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Importieren
     </a>
+    <a href="#" class="nav-link" id="exportLink">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportieren
+    </a>
     <a href="index.html" class="nav-link">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m0 0l7-7m-7 7l7 7"/></svg>
       Übersicht
@@ -141,6 +145,7 @@
   // ── Init ──────────────────────────────────────────────────────────────
   async function init() {
     document.getElementById('importLink').href = `import.html?deckId=${deckId}`;
+    document.getElementById('exportLink').href = `export.html?deckId=${deckId}`;
     const decks = await getAllDecks();
     deck = decks.find(d => d.id === deckId);
     if (!deck) { location.href = 'index.html'; return; }

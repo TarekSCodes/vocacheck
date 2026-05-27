@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VocaCheck — Exportieren</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .export-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .radio-opt {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .85rem;
+      color: var(--text-secondary);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+    }
+    .radio-opt:has(input:checked) {
+      border-color: rgba(56,189,248,.4);
+      color: var(--text-primary);
+      background: var(--accent-dim);
+    }
+    .radio-opt input[type="radio"] {
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+    .custom-sep-input {
+      width: 90px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: 'DM Sans', monospace;
+      font-size: .85rem;
+      padding: 5px 10px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .custom-sep-input:focus { border-color: var(--border-glow); }
+    .custom-sep-input:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    .export-count {
+      font-size: .88rem;
+      color: var(--text-secondary);
+    }
+    .export-count strong { color: var(--accent); font-size: 1rem; }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    #outputArea {
+      width: 100%;
+      min-height: 200px;
+      box-sizing: border-box;
+      resize: vertical;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-family: 'DM Sans', monospace;
+      font-size: .85rem;
+      padding: 12px 14px;
+      outline: none;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(56,189,248,.35);
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+    .copy-btn:hover {
+      background: rgba(56,189,248,.2);
+      border-color: rgba(56,189,248,.6);
+    }
+    .copy-btn.copied {
+      color: var(--green, #4ade80);
+      border-color: rgba(74,222,128,.4);
+      background: rgba(74,222,128,.1);
+    }
+    .copy-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">Voca<span>Check</span></a>
+  <div class="deck-title">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <strong>Karteikarten exportieren</strong>
+  </div>
+  <div class="header-actions">
+    <a href="index.html" class="nav-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m0 0l7-7m-7 7l7 7"/></svg>
+      Zurück
+    </a>
+  </div>
+</header>
+
+<main>
+  <div class="export-layout">
+
+    <!-- SCHRITT 1: Deck auswählen -->
+    <div class="settings-section">
+      <div class="settings-section-title">1 · Deck auswählen</div>
+      <select class="form-select" id="deckSelect">
+        <option value="">Decks werden geladen…</option>
+      </select>
+    </div>
+
+    <!-- SCHRITT 2: Trennzeichen -->
+    <div class="settings-section">
+      <div class="settings-section-title">2 · Trennzeichen</div>
+
+      <div style="margin-bottom: 12px;">
+        <div class="form-label" style="margin-bottom: 6px;">Begriff / Definition</div>
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="termDef" value="tab" checked> Tab
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="termDef" value="comma"> Komma
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="termDef" value="custom"> Benutzerdefiniert
+            <input type="text" class="custom-sep-input" id="customTermDef" placeholder="\t" disabled>
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <div class="form-label" style="margin-bottom: 6px;">Karten-Trennzeichen</div>
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="newline" checked> Zeilenumbruch
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="semicolon"> Semikolon
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="lineSep" value="custom"> Benutzerdefiniert
+            <input type="text" class="custom-sep-input" id="customLineSep" placeholder="\n" disabled>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCHRITT 3: Ausgabe -->
+    <div class="settings-section">
+      <div class="output-header">
+        <div class="export-count" id="exportCount">—</div>
+        <button class="copy-btn" id="copyBtn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Kopieren
+        </button>
+      </div>
+      <textarea id="outputArea" readonly placeholder="Wähle ein Deck, um den Export zu sehen…"></textarea>
+    </div>
+
+  </div>
+</main>
+
+<script type="module">
+  import { getAllDecks } from './services/DeckService.js';
+  import { getCards }    from './services/CardService.js';
+  import { formatCards } from './services/ExportService.js';
+
+  // ── State ──────────────────────────────────────────────────────────────
+  let cards = [];
+
+  // ── DOM refs ───────────────────────────────────────────────────────────
+  const deckSelect     = document.getElementById('deckSelect');
+  const outputArea     = document.getElementById('outputArea');
+  const exportCount    = document.getElementById('exportCount');
+  const copyBtn        = document.getElementById('copyBtn');
+  const customTermDef  = document.getElementById('customTermDef');
+  const customLineSep  = document.getElementById('customLineSep');
+
+  // ── HTML escape helper ─────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Separator helpers ──────────────────────────────────────────────────
+  function resolveEscapes(str) {
+    return str.replace(/\\t/g, '\t').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+  }
+
+  function getTermDefSep() {
+    const val = document.querySelector('input[name="termDef"]:checked').value;
+    if (val === 'tab')    return '\t';
+    if (val === 'comma')  return ',';
+    return resolveEscapes(customTermDef.value) || '\t';
+  }
+
+  function getLineSep() {
+    const val = document.querySelector('input[name="lineSep"]:checked').value;
+    if (val === 'newline')   return '\n';
+    if (val === 'semicolon') return ';';
+    return resolveEscapes(customLineSep.value) || '\n';
+  }
+
+  // ── Render output ──────────────────────────────────────────────────────
+  function renderOutput() {
+    if (!cards.length) {
+      outputArea.value = '';
+      exportCount.innerHTML = '—';
+      copyBtn.disabled = true;
+      return;
+    }
+    outputArea.value = formatCards(cards, {
+      termDefSeparator: getTermDefSep(),
+      lineSeparator:    getLineSep(),
+    });
+    exportCount.innerHTML = `<strong>${cards.length}</strong> Karte${cards.length !== 1 ? 'n' : ''}`;
+    copyBtn.disabled = false;
+  }
+
+  // ── Load cards for selected deck ───────────────────────────────────────
+  async function loadCards() {
+    const deckId = deckSelect.value;
+    if (!deckId) { cards = []; renderOutput(); return; }
+    try {
+      cards = await getCards(deckId);
+    } catch {
+      cards = [];
+      outputArea.value = '';
+      exportCount.textContent = 'Fehler beim Laden der Karten.';
+      copyBtn.disabled = true;
+      return;
+    }
+    renderOutput();
+  }
+
+  // ── Copy to clipboard ──────────────────────────────────────────────────
+  copyBtn.addEventListener('click', async () => {
+    if (!outputArea.value) return;
+    try {
+      await navigator.clipboard.writeText(outputArea.value);
+    } catch {
+      exportCount.textContent = 'Kopieren fehlgeschlagen — bitte manuell kopieren.';
+      return;
+    }
+    copyBtn.classList.add('copied');
+    copyBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Kopiert ✓`;
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Kopieren`;
+    }, 1500);
+  });
+
+  // ── Custom separator toggle ────────────────────────────────────────────
+  document.querySelectorAll('input[name="termDef"]').forEach(r => {
+    r.addEventListener('change', () => {
+      customTermDef.disabled = !document.querySelector('input[name="termDef"][value="custom"]').checked;
+      renderOutput();
+    });
+  });
+  document.querySelectorAll('input[name="lineSep"]').forEach(r => {
+    r.addEventListener('change', () => {
+      customLineSep.disabled = !document.querySelector('input[name="lineSep"][value="custom"]').checked;
+      renderOutput();
+    });
+  });
+  customTermDef.addEventListener('input', renderOutput);
+  customLineSep.addEventListener('input', renderOutput);
+
+  deckSelect.addEventListener('change', loadCards);
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  const params   = new URLSearchParams(location.search);
+  const presetId = params.get('deckId');
+
+  let decks = [];
+  let loadError = false;
+  try {
+    decks = await getAllDecks();
+  } catch {
+    loadError = true;
+  }
+  if (loadError) {
+    deckSelect.innerHTML = '<option value="">Fehler beim Laden — Seite neu laden</option>';
+  } else {
+    deckSelect.innerHTML = decks.length
+      ? decks.map(d => `<option value="${escHtml(d.id)}">${escHtml(d.name)}</option>`).join('')
+      : '<option value="">Keine Decks vorhanden</option>';
+  }
+
+  if (presetId && decks.find(d => d.id === presetId)) {
+    deckSelect.value = presetId;
+  }
+
+  await loadCards();
+</script>
+
+</body>
+</html>

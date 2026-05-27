@@ -278,7 +278,12 @@
   // ── Copy to clipboard ──────────────────────────────────────────────────
   copyBtn.addEventListener('click', async () => {
     if (!outputArea.value) return;
-    await navigator.clipboard.writeText(outputArea.value);
+    try {
+      await navigator.clipboard.writeText(outputArea.value);
+    } catch {
+      exportCount.textContent = 'Kopieren fehlgeschlagen — bitte manuell kopieren.';
+      return;
+    }
     copyBtn.classList.add('copied');
     copyBtn.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -319,14 +324,19 @@
   const presetId = params.get('deckId');
 
   let decks = [];
+  let loadError = false;
   try {
     decks = await getAllDecks();
   } catch {
-    deckSelect.innerHTML = '<option value="">Fehler beim Laden — Seite neu laden</option>';
+    loadError = true;
   }
-  deckSelect.innerHTML = decks.length
-    ? decks.map(d => `<option value="${escHtml(d.id)}">${escHtml(d.name)}</option>`).join('')
-    : '<option value="">Keine Decks vorhanden</option>';
+  if (loadError) {
+    deckSelect.innerHTML = '<option value="">Fehler beim Laden — Seite neu laden</option>';
+  } else {
+    deckSelect.innerHTML = decks.length
+      ? decks.map(d => `<option value="${escHtml(d.id)}">${escHtml(d.name)}</option>`).join('')
+      : '<option value="">Keine Decks vorhanden</option>';
+  }
 
   if (presetId && decks.find(d => d.id === presetId)) {
     deckSelect.value = presetId;

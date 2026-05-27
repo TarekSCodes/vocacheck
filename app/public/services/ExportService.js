@@ -21,6 +21,7 @@
  */
 export function formatCards(cards, { termDefSeparator = '\t', lineSeparator = '\n' } = {}) {
   return cards
+    .filter(c => c.question != null && c.answer != null && c.question !== '' && c.answer !== '')
     .map(c => `${c.question}${termDefSeparator}${c.answer}`)
     .join(lineSeparator);
 }

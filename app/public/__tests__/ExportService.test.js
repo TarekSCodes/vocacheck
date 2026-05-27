@@ -77,3 +77,26 @@ describe('formatCards — nur Frage und Antwort', () => {
     expect(formatCards(cards)).toBe('Hund\tDog');
   });
 });
+
+// ---------------------------------------------------------------------------
+// formatCards — fehlerhafte Karten werden gefiltert
+// ---------------------------------------------------------------------------
+describe('formatCards — fehlerhafte Karten werden gefiltert', () => {
+  test('überspringt Karten mit null-Frage oder null-Antwort', () => {
+    const cards = [
+      { question: 'Hund',  answer: 'Dog'  },
+      { question: null,    answer: 'Cat'  },
+      { question: 'Haus',  answer: null   },
+    ];
+    expect(formatCards(cards)).toBe('Hund\tDog');
+  });
+
+  test('überspringt Karten mit leerem question oder answer', () => {
+    const cards = [
+      { question: 'Hund',  answer: 'Dog' },
+      { question: '',      answer: 'Cat' },
+      { question: 'Haus',  answer: ''   },
+    ];
+    expect(formatCards(cards)).toBe('Hund\tDog');
+  });
+});

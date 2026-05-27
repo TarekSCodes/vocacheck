@@ -114,6 +114,7 @@
       border-color: rgba(74,222,128,.4);
       background: rgba(74,222,128,.1);
     }
+    .copy-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -214,6 +215,15 @@
   const customTermDef  = document.getElementById('customTermDef');
   const customLineSep  = document.getElementById('customLineSep');
 
+  // ── HTML escape helper ─────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   // ── Separator helpers ──────────────────────────────────────────────────
   function resolveEscapes(str) {
     return str.replace(/\\t/g, '\t').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
@@ -253,7 +263,15 @@
   async function loadCards() {
     const deckId = deckSelect.value;
     if (!deckId) { cards = []; renderOutput(); return; }
-    cards = await getCards(deckId);
+    try {
+      cards = await getCards(deckId);
+    } catch {
+      cards = [];
+      outputArea.value = '';
+      exportCount.textContent = 'Fehler beim Laden der Karten.';
+      copyBtn.disabled = true;
+      return;
+    }
     renderOutput();
   }
 
@@ -300,9 +318,14 @@
   const params   = new URLSearchParams(location.search);
   const presetId = params.get('deckId');
 
-  const decks = await getAllDecks();
+  let decks = [];
+  try {
+    decks = await getAllDecks();
+  } catch {
+    deckSelect.innerHTML = '<option value="">Fehler beim Laden — Seite neu laden</option>';
+  }
   deckSelect.innerHTML = decks.length
-    ? decks.map(d => `<option value="${d.id}">${d.name}</option>`).join('')
+    ? decks.map(d => `<option value="${escHtml(d.id)}">${escHtml(d.name)}</option>`).join('')
     : '<option value="">Keine Decks vorhanden</option>';
 
   if (presetId && decks.find(d => d.id === presetId)) {
